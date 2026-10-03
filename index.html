@@ -5,45 +5,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Madison Eats</title>
 <meta name="description" content="Every place to eat in Madison, WI on one map, with ratings from Google, DoorDash, Uber Eats, Toast, EatStreet and Grubhub, health inspections, and which delivery apps carry each one.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23B4441C'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-style='italic' font-size='20' fill='white' text-anchor='middle'%3EE%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='16' fill='black'/%3E%3Ctext x='16' y='22' font-family='Arial,sans-serif' font-weight='800' font-size='17' fill='white' text-anchor='middle'%3EM%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="style.css?v=b2e601addb">
+<link rel="stylesheet" href="style.css?v=d84c86726e">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="wordmark">Madison Eats</span></div>
+  <span class="wordmark">Madison Eats</span>
   <nav class="tabs" role="tablist">
-    <button role="tab" class="tab active" data-view="map" data-i18n="tab_map">地图</button>
+    <button role="tab" class="tab active" data-view="map" data-i18n="tab_map">美食</button>
     <button role="tab" class="tab" data-view="plat" data-i18n="tab_plat">外卖平台</button>
   </nav>
-  <div class="top-right">
-    <button class="lang" id="lang" aria-label="Switch language">EN</button>
-  </div>
+  <div class="top-right"><button class="lang" id="lang" aria-label="Switch language">EN</button></div>
 </header>
 
 <main id="view-map" class="view active">
   <aside class="rail" id="rail">
     <div class="filters">
-      <input id="q" type="search" autocomplete="off" data-i18n-ph="search_ph" placeholder="店名、菜系或菜名，例如 拉面、dumpling">
+      <input id="q" class="search" type="search" autocomplete="off" data-i18n-ph="search_ph" placeholder="搜店名、菜系或菜名">
       <div class="frow">
-        <select id="f-kind" aria-label="Type"></select>
         <select id="f-cuis" aria-label="Cuisine"></select>
-      </div>
-      <div class="frow">
-        <select id="f-plat" aria-label="Delivery app"></select>
         <select id="f-sort" aria-label="Sort"></select>
+        <button class="chip" id="f-open" type="button" aria-pressed="false" data-i18n="open_now">营业中</button>
+        <button class="chip" id="f-more" type="button" aria-expanded="false" data-i18n="more_filters">更多筛选</button>
       </div>
-      <div class="frow toggles">
-        <label class="switch"><input type="checkbox" id="f-open"> <span data-i18n="open_now">现在营业</span></label>
-        <label class="switch"><input type="checkbox" id="f-rated"> <span data-i18n="rated_only">只看有评分的</span></label>
-        <select id="f-tag" aria-label="Good for" class="tagsel"></select>
-      </div>
-      <div class="frow from">
-        <span class="lbl" data-i18n="dist_from">距离从</span>
-        <select id="f-from" aria-label="Distance from"></select>
+      <div class="more-panel" id="more-panel" hidden>
+        <select id="f-kind" aria-label="Type"></select>
+        <select id="f-tag" aria-label="Occasion"></select>
+        <select id="f-plat" aria-label="Delivery app"></select>
+        <select id="f-rated" aria-label="Ratings"></select>
+        <div class="wide"><span class="lbl" data-i18n="dist_from">距离从</span><select id="f-from" aria-label="Distance from"></select></div>
       </div>
     </div>
     <div class="count" id="count"></div>
@@ -57,27 +51,22 @@
 </main>
 
 <main id="view-plat" class="view">
-  <div class="plat-page">
-    <div class="plat-head">
-      <div class="plat-sum" id="plat-sum"></div>
-      <div class="plat-tools">
-        <input id="pq" type="search" autocomplete="off" data-i18n-ph="search_ph2" placeholder="搜店名">
-        <select id="p-cuis" aria-label="Cuisine"></select>
-        <select id="p-only" aria-label="Platform"></select>
-      </div>
-    </div>
-    <div class="table-wrap">
-      <table class="plat-table" id="plat-table">
-        <thead><tr id="plat-th"></tr></thead>
-        <tbody id="plat-tb"></tbody>
-      </table>
-    </div>
+  <div class="plat-page"><div class="plat-inner">
+    <div class="plat-cards" id="plat-cards"></div>
+    <div class="plat-price" id="plat-price"></div>
     <p class="plat-note" id="plat-note"></p>
-  </div>
+    <div class="plat-tools">
+      <input id="pq" class="search" type="search" autocomplete="off" data-i18n-ph="search_ph2" placeholder="搜店名">
+      <select id="p-cuis" aria-label="Cuisine"></select>
+      <select id="p-sort" aria-label="Sort"></select>
+    </div>
+    <div id="plat-list"></div>
+    <div class="xpanel" id="plat-extra"></div>
+  </div></div>
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="data/places.js?v=f5617237e8"></script>
-<script src="app.js?v=78959cc0b3"></script>
+<script src="data/places.js?v=339a666f4a"></script>
+<script src="app.js?v=a45650311d"></script>
 </body>
 </html>
