@@ -1,12 +1,39 @@
-(function () {
+(async function () {
   'use strict';
-  var P = window.PLACES || [], META = window.META || {}, LOCAL = window.LOCAL || {};
-  var CU = META.cuisines || {}, KI = META.kinds || {}, PLAT = META.plat || {}, TG = META.tags || {};
+  // Data source: the full dataset on this machine (local mode), or the guarded API (public site)
+  var E = window.EatsEngine, CFG = window.EATS_CONFIG || {};
+  var LIX = window.PLACES && E ? E.prepare({ meta: window.META, places: window.PLACES }) : null;
+  var G = !LIX && CFG.api && window.WebgrsGuard ? WebgrsGuard.create({ api: CFG.api, sitekey: CFG.sitekey, site: 'eats' }) : null;
+  if (!LIX && !G) { document.body.innerHTML = '<p style="padding:24px">No data: run the pipeline, or point data/config.js at the API.</p>'; return; }
   // Optional local-only extensions (defined in local.js, never published)
   var X = window.MEX || {};
+  var DETAILS = null, detailsP = null;
+  function loadDetails() {
+    if (DETAILS) return Promise.resolve(DETAILS);
+    if (!detailsP) detailsP = fetch('data/details.json').then(function (r) { return r.json(); }).then(function (d) { DETAILS = d; E.setDetails(LIX, d); return d; });
+    return detailsP;
+  }
+  function ext() { return { tags: (X.tagOptions || []).map(function (o) { return o[0]; }), match: X.match }; }
+  var DS = {
+    remote: !LIX,
+    meta: function () { return LIX ? Promise.resolve(E.metaOf(LIX)) : fetch(CFG.api.replace(/\/$/, '') + '/api/meta').then(function (r) { if (!r.ok) throw new Error('meta'); return r.json(); }); },
+    search: function (q) { return LIX ? Promise.resolve(E.search(LIX, q, { ext: ext() })) : G.call('/api/search', { method: 'POST', body: q }); },
+    place: function (id, q) { return LIX ? loadDetails().then(function () { return E.place(LIX, id, q); }) : G.call('/api/place', { method: 'POST', body: { id: id, q: q } }); },
+    peek: function (ids) { return LIX ? Promise.resolve({ rows: E.peek(LIX, ids) }) : G.call('/api/peek', { method: 'POST', body: { ids: ids } }); },
+    plat: function (q) { return LIX ? loadDetails().then(function () { return E.plat(LIX, q); }) : G.call('/api/plat', { method: 'POST', body: q }); }
+  };
+  if (G) G.session().catch(function () { /* retried on the first call */ });
+  var M;
+  try { M = await DS.meta(); } catch (e) {
+    document.body.innerHTML = '<p style="padding:24px">The map could not load its data. Try again in a minute.</p>';
+    return;
+  }
+  var META = M.meta || {}, COUNTS = M.counts || { kinds: {}, cuis: {}, tags: {} }, LOCAL = window.LOCAL || {};
+  var CU = META.cuisines || {}, KI = META.kinds || {}, PLAT = META.plat || {}, TG = META.tags || {};
+  // Local mode: the full record behind a row, for the local extensions
+  function full(p) { return LIX ? LIX.byId.get(p.i) || p : p; }
   var PCODES = ['d', 'u', 'g', 'e', 't'];
   var SRC = { google: 'Google', dd: 'DoorDash', ue: 'Uber Eats', gh: 'Grubhub', es: 'EatStreet', toast: 'Toast' };
-  var CODE_SRC = { d: 'dd', u: 'ue', g: 'gh', e: 'es', t: 'toast' };
   var SRC_CODE = { dd: 'd', ue: 'u', gh: 'g', es: 'e', toast: 't' };
   var LS = {
     get: function (k, d) { try { var v = localStorage.getItem('me:' + k); return v === null ? d : v; } catch (e) { return d; } },
@@ -50,7 +77,11 @@
       px_head_same: '同一道菜，DoorDash 和 Uber Eats 大多同价', px_head_diff: '同一道菜，DoorDash 和 Uber Eats 常常不同价',
       px_body: '比了 {n} 家两边都能点的店：{s} 家菜价完全一样，{u} 家 Uber Eats 更贵，{d} 家 DoorDash 更贵，差价多在 {p}% 以内。真正拉开差距的是配送费、服务费和会员优惠，只在 App 结算时显示。下表「菜价低」标的是便宜的一边。',
       cheaper: '菜价低 {x}%',
-      col_place: '店', col_score: '综合', none: '—', listed: '已下架'
+      col_place: '店', col_score: '综合', none: '—', listed: '已下架', loading: '加载中…',
+      err_quota: '今天能查看的数量用完了。为防止数据被批量复制，每个访客每天有上限，明天会恢复。',
+      err_slow: '操作太快了，等几秒再试。', err_blocked: '这个浏览器的访问已被停止。如果你只是正常使用，请联系网站作者。',
+      err_other: '数据暂时取不到，稍后再试。', err_gone: '没有这家店。',
+      served: '为防止数据被批量复制，页面不会把全部数据一次发给浏览器，而是按需向服务器要：列表一次一页，店的详情点开才取，每个访客每天能看的数量有上限。每次请求会匿名记录（看了哪家店、用了哪些筛选和搜索词），用来改进页面和发现批量抓取。不记录姓名，IP 只存不可逆的哈希，不用 cookie；算距离用的位置会四舍五入到约 100 米，且不记录。'
     },
     en: {
       tab_map: 'Food', tab_plat: 'Delivery apps', search_ph: 'Name, cuisine or dish', search_ph2: 'Search by name',
@@ -87,7 +118,11 @@
       px_head_same: 'Most places charge the same menu prices on DoorDash and Uber Eats', px_head_diff: 'Menu prices often differ between DoorDash and Uber Eats',
       px_body: 'Of {n} places on both apps, {s} charge exactly the same for the same items, {u} charge more on Uber Eats and {d} more on DoorDash, mostly within {p}%. Delivery and service fees and memberships make the real difference, and they only show at checkout. In the table, "Menu x% cheaper" marks the cheaper side.',
       cheaper: 'Menu {x}% cheaper',
-      col_place: 'Place', col_score: 'Score', none: '—', listed: 'delisted'
+      col_place: 'Place', col_score: 'Score', none: '—', listed: 'delisted', loading: 'Loading…',
+      err_quota: "You have reached today's limit. To stop bulk copying, each visitor can look at a limited number per day; it resets tomorrow.",
+      err_slow: 'Too many requests at once. Wait a few seconds and try again.', err_blocked: 'Access from this browser has been stopped. If that is a mistake, contact the site author.',
+      err_other: 'The data could not be loaded. Try again shortly.', err_gone: 'No such place.',
+      served: 'To stop bulk copying, this page never sends the whole dataset to the browser. It asks the server for what you look at: one page of the list at a time and a place only when you open it, with a daily limit per visitor. Each request is logged anonymously (which place, which filters and search words) to improve the page and spot scraping. No names are stored, IP addresses only as a one-way hash, and no cookies are set; the location used for distances is rounded to about 100 m and never logged.'
     }
   };
   function t(k, vars) {
@@ -99,22 +134,11 @@
   function $(id) { return document.getElementById(id); }
   function fmtN(n) { return n >= 1000 ? (Math.round(n / 100) / 10) + 'k' : String(n); }
 
-  // Chinese search words -> English keywords
-  var SYN = {
-    '拉面': ['ramen', 'hand pulled', 'hand-pulled', 'lamian'], '面': ['noodle', 'ramen', 'pho', 'udon', 'lo mein'], '米线': ['rice noodle', 'mixian'],
-    '饺子': ['dumpling', 'momo', 'gyoza', 'pelmeni'], '小笼包': ['soup dumpling', 'xiao long bao'], '包子': ['bao', 'bun'],
-    '火锅': ['hot pot', 'hotpot', 'shabu'], '麻辣烫': ['malatang', 'mala'], '麻辣': ['mala', 'sichuan', 'szechuan', 'spicy'],
-    '川菜': ['sichuan', 'szechuan'], '湘菜': ['hunan'], '粤菜': ['cantonese', 'dim sum'], '早茶': ['dim sum'], '台湾': ['taiwan'],
-    '寿司': ['sushi'], '日料': ['japanese', 'sushi', 'ramen'], '韩餐': ['korean'], '烤肉': ['bbq', 'korean bbq', 'grill'],
-    '烧烤': ['bbq', 'barbecue', 'skewer'], '串': ['skewer', 'kebab'], '泰': ['thai'], '越南': ['vietnamese', 'pho', 'banh mi'],
-    '印度': ['indian', 'curry', 'tandoori'], '咖喱': ['curry'], '墨西哥': ['mexican', 'taco', 'burrito'], '披萨': ['pizza'],
-    '汉堡': ['burger'], '炸鸡': ['fried chicken', 'chicken', 'wings'], '鸡翅': ['wings'], '牛排': ['steak'],
-    '海鲜': ['seafood', 'fish', 'oyster', 'crab', 'boil'], '早餐': ['breakfast', 'brunch', 'bagel', 'pancake'], '早午餐': ['brunch'],
-    '咖啡': ['coffee', 'espresso', 'cafe'], '奶茶': ['bubble tea', 'boba', 'milk tea'], '甜品': ['dessert', 'cake', 'cookie', 'crepe'],
-    '蛋糕': ['cake', 'cheesecake'], '冰淇淋': ['ice cream', 'custard', 'gelato'], '面包': ['bakery', 'bread', 'bagel', 'croissant'],
-    '素食': ['vegan', 'vegetarian'], '清真': ['halal'], '沙拉': ['salad'], '三明治': ['sandwich', 'sub'], '意大利': ['italian', 'pasta'],
-    '地中海': ['mediterranean', 'gyro', 'falafel'], '炒饭': ['fried rice'], '粥': ['congee'], '中餐': ['chinese'], '酒吧': ['bar', 'pub', 'brewery']
-  };
+  // Message for a refused request (daily quota, too fast, blocked)
+  function apiErrText(e) {
+    var k = e && e.data && e.data.error;
+    return t(k === 'quota' ? 'err_quota' : k === 'slow' ? 'err_slow' : k === 'blocked' ? 'err_blocked' : e && e.status === 404 ? 'err_gone' : 'err_other');
+  }
 
   // ---------- time ----------
   var DOW = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
@@ -141,7 +165,8 @@
     if (p.cl === 1) return t('perm_closed');
     if (p.cl === 2) return t('temp_closed');
     if (p.cl === 3) return t('maybe_closed');
-    var s = openState(p);
+    // Rows carry the server's open state; a full record has its weekly hours
+    var s = p.h ? openState(p) : p.st;
     if (!s) return '';
     if (s.open) return s.all ? t('open_24') : t('open_until', { t: hm(s.until) });
     if (s.next == null) return t('closed_today');
@@ -156,11 +181,6 @@
     if (f === 'home' && LOCAL.home) return [LOCAL.home.lat, LOCAL.home.lon];
     if (f === 'gps' && gps) return gps;
     return FROM[f] || FROM.campus;
-  }
-  function km(a, b) {
-    var R = 6371, r = Math.PI / 180, dLat = (b[0] - a[0]) * r, dLon = (b[1] - a[1]) * r;
-    var x = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    return 2 * R * Math.asin(Math.sqrt(x));
   }
   function distLabel(k) {
     if (k == null) return '';
@@ -196,7 +216,7 @@
     }
   }, true);
   function metaLine(p) {
-    return [(p.c || []).slice(0, 2).map(cuisLabel).join(' / ') || kindLabel(p.k), p.pr ? '$'.repeat(p.pr) : '', distLabel(p._d)].filter(Boolean).join(' · ');
+    return [(p.c || []).slice(0, 2).map(cuisLabel).join(' / ') || kindLabel(p.k), p.pr ? '$'.repeat(p.pr) : '', distLabel(p.dk)].filter(Boolean).join(' · ');
   }
 
   // ---------- filters ----------
@@ -205,13 +225,7 @@
     if (val != null && opts.some(function (o) { return o[0] === val; })) sel.value = val;
   }
   function buildFilters() {
-    var kinds = {}, cuis = {}, tcount = {};
-    P.forEach(function (p) {
-      if (p.cl === 1 || p.cl === 3) return;
-      kinds[p.k] = (kinds[p.k] || 0) + 1;
-      (p.c || []).forEach(function (c) { cuis[c] = (cuis[c] || 0) + 1; });
-      (p.tg || []).forEach(function (g) { tcount[g] = (tcount[g] || 0) + 1; });
-    });
+    var kinds = COUNTS.kinds, cuis = COUNTS.cuis, tcount = COUNTS.tags;
     var copts = [['', t('all_cuis')]].concat(Object.keys(CU).filter(function (c) { return cuis[c]; })
       .sort(function (a, b) { return cuis[b] - cuis[a]; }).map(function (c) { return [c, cuisLabel(c)]; }));
     fillSelect($('f-cuis'), copts, LS.get('cuis', ''));
@@ -232,65 +246,66 @@
     var ps = [['overall', t('ps_overall')], ['napps', t('ps_count')]].concat(PCODES.map(function (c) { return ['r' + c, t('ps_rating', { p: PLAT[c] })]; }));
     fillSelect($('p-sort'), ps, $('p-sort').value || 'overall');
   }
-  function matchQuery(p, q) {
-    if (!q) return true;
-    var hay = (p.n + ' ' + (p.z || '') + ' ' + (p.kw || '') + ' ' + (p.c || []).map(function (c) { return CU[c] ? CU[c].join(' ') : c; }).join(' ') + ' ' + (p.a || '')).toLowerCase();
-    return q.toLowerCase().split(/\s+/).filter(Boolean).every(function (term) {
-      if (hay.indexOf(term) >= 0) return true;
-      return Object.keys(SYN).filter(function (z) { return term.indexOf(z) >= 0; })
-        .some(function (z) { return SYN[z].some(function (e) { return hay.indexOf(e) >= 0; }); });
-    });
+  // ---------- list (one page at a time from the data source) ----------
+  var view = [], total = 0, marks = [], markById = {}, names = {}, sel = null, cur = null, seq = 0;
+  function seed(r) { names[r.i] = { n: r.n, o: r.o }; }
+  function queryParams(offset) {
+    return {
+      text: $('q').value.trim(), kind: $('f-kind').value, cuis: $('f-cuis').value, plat: $('f-plat').value, tag: $('f-tag').value,
+      open: $('f-open').getAttribute('aria-pressed') === 'true', rated: $('f-rated').value, sort: $('f-sort').value,
+      ref: refPoint(), from: $('f-from').value, offset: offset || 0
+    };
   }
-  var SORT = {
-    overall: function (p) { return p.o == null ? -1 : p.o; }, taste: function (p) { return p.s && p.s[0] != null ? p.s[0] : -1; },
-    pop: function (p) { return p.s ? p.s[1] : -1; }, value: function (p) { return p.s && p.s[2] != null ? p.s[2] : -1; },
-    hyg: function (p) { return p.s && p.s[3] != null ? p.s[3] : -1; }, count: function (p) { return p.rc || 0; }
-  };
-  var view = [], shown = 120, sel = null;
-  function apply() {
-    var q = $('q').value.trim(), kind = $('f-kind').value, cuis = $('f-cuis').value, plat = $('f-plat').value, tag = $('f-tag').value;
-    var open = $('f-open').getAttribute('aria-pressed') === 'true', rated = $('f-rated').value, sort = $('f-sort').value;
-    ['kind', 'cuis', 'plat', 'sort', 'tag', 'rated'].forEach(function (k) { LS.set(k, { kind: kind, cuis: cuis, plat: plat, sort: sort, tag: tag, rated: rated }[k]); });
-    LS.set('from', $('f-from').value);
-    var ref = refPoint(), ql = q.toLowerCase();
-    view = P.filter(function (p) {
-      if ((p.cl === 1 || p.cl === 3) && !(q && p.n.toLowerCase().indexOf(ql) >= 0)) return false;
-      if (kind ? p.k !== kind : (p.k === 'market' || p.k === 'virtual')) return false;
-      if (cuis && (p.c || []).indexOf(cuis) < 0) return false;
-      if (plat === 'none' ? (p.pf || '') !== '' : (plat && (p.pf || '').indexOf(plat) < 0)) return false;
-      if (rated === 'rated' && p.o == null) return false;
-      if (rated === 'conf' && (p.o == null || p.cf === 'low')) return false;
-      if (tag) {
-        var ext = (X.tagOptions || []).some(function (o) { return o[0] === tag; });
-        if (ext ? !(X.match && X.match(p, tag)) : (p.tg || []).indexOf(tag) < 0) return false;
-      }
-      if (open) { var s = openState(p); if (!s || !s.open) return false; }
-      return matchQuery(p, q);
-    });
-    view.forEach(function (p) { p._d = p.la != null ? km(ref, [p.la, p.lo]) : null; });
-    if (sort === 'dist') view.sort(function (a, b) { return (a._d == null ? 1e9 : a._d) - (b._d == null ? 1e9 : b._d); });
-    else view.sort(function (a, b) { return SORT[sort](b) - SORT[sort](a) || (a._d || 99) - (b._d || 99); });
-    shown = 120;
+  function moreLabel() {
     var moreN = ['f-kind', 'f-tag', 'f-plat', 'f-rated'].filter(function (id) { return $(id).value; }).length;
     $('f-more').textContent = t('more_filters') + (moreN ? ' · ' + moreN : '');
-    renderList();
-    renderMarkers();
+  }
+  function apply() {
+    var q = queryParams(0);
+    ['kind', 'cuis', 'plat', 'sort', 'tag', 'rated'].forEach(function (k) { LS.set(k, q[k]); });
+    LS.set('from', q.from);
+    moreLabel();
+    var my = ++seq;
+    if (!view.length) $('count').textContent = t('loading');
+    DS.search(q).then(function (r) {
+      if (my !== seq) return;
+      view = r.rows; total = r.total; marks = r.markers || [];
+      markById = {};
+      marks.forEach(function (m) { markById[m[0]] = m; });
+      view.forEach(seed);
+      renderList();
+      renderMarkers();
+    }, function (e) {
+      if (my !== seq) return;
+      $('count').textContent = '';
+      $('list').innerHTML = '<li class="empty">' + esc(apiErrText(e)) + '</li>';
+    });
+  }
+  function loadMore(btn) {
+    var my = seq;
+    btn.disabled = true;
+    DS.search(queryParams(view.length)).then(function (r) {
+      if (my !== seq) return;
+      r.rows.forEach(seed);
+      view = view.concat(r.rows);
+      renderList();
+    }, function (e) { btn.disabled = false; btn.textContent = apiErrText(e); });
   }
   function renderList() {
-    $('count').textContent = t('count', { n: view.length.toLocaleString() });
-    var html = view.slice(0, shown).map(function (p) {
-      var st = openState(p), open = st && st.open && !p.cl;
+    $('count').textContent = t('count', { n: total.toLocaleString() });
+    var html = view.map(function (p) {
+      var st = p.st, open = st && st.open && !p.cl;
       return '<li class="item' + (sel === p.i ? ' sel' : '') + '" data-i="' + p.i + '">' + thumbHtml(p) +
         '<div class="body"><div class="nm">' + esc(p.n) + (p.z ? '<span class="zh">' + esc(p.z) + '</span>' : '') + '</div>' +
-        '<div class="meta">' + esc(metaLine(p)) + (X.badge ? X.badge(p, lang) : '') + '</div>' +
+        '<div class="meta">' + esc(metaLine(p)) + (X.badge ? X.badge(full(p), lang) : '') + '</div>' +
         (open ? '<div class="open">' + esc(statusText(p)) + '</div>' : (p.cl ? '<div class="open">' + esc(statusText(p)) + '</div>' : '')) +
         '</div>' + scoreHtml(p.o) + '</li>';
     }).join('');
-    if (view.length > shown) html += '<li><button class="more-btn" id="more">' + t('more', { n: Math.min(120, view.length - shown) }) + '</button></li>';
+    if (total > view.length) html += '<li><button class="more-btn" id="more">' + t('more', { n: Math.min(60, total - view.length) }) + '</button></li>';
     if (!view.length) html = '<li class="empty">' + t('empty') + '</li>';
     $('list').innerHTML = html;
     var mb = $('more');
-    if (mb) mb.onclick = function (e) { e.stopPropagation(); shown += 120; renderList(); };
+    if (mb) mb.onclick = function (e) { e.stopPropagation(); loadMore(mb); };
   }
 
   // ---------- map ----------
@@ -303,8 +318,9 @@
   legend.onAdd = function () { var d = L.DomUtil.create('div', 'legend'); d.id = 'legend'; return d; };
   legend.addTo(map);
   function dark() { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; }
-  function markerStyle(p, on) {
-    var tr = tier(p.o), ink = dark() ? '#fff' : '#000', paper = dark() ? '#000' : '#fff';
+  var TIERS = ['na', 's3', 's2', 's1'];
+  function markerStyle(tr, on) {
+    var ink = dark() ? '#fff' : '#000', paper = dark() ? '#000' : '#fff';
     if (on) return { radius: 10, weight: 3, color: paper, fillColor: ink, fillOpacity: 1 };
     if (tr === 's1') return { radius: 7, weight: 1.5, color: paper, fillColor: ink, fillOpacity: 1 };
     if (tr === 's2') return { radius: 6, weight: 2, color: ink, fillColor: paper, fillOpacity: 1 };
@@ -316,36 +332,32 @@
     $('legend').innerHTML = '<span><i style="background:' + ink + '"></i>80+</span><span><i style="background:' + paper + ';border:2px solid ' + ink +
       '"></i>65–79</span><span><i style="background:#8C8C8C"></i>&lt;65</span><span><i style="background:' + paper + ';border:1px solid #8C8C8C"></i>' + t('not_rated') + '</span>';
   }
+  function tipText(i) { var nm = names[i]; return nm ? esc(nm.n) + (nm.o != null ? '  ' + nm.o : '') : '…'; }
   function renderMarkers() {
     layer.clearLayers();
     markers = {};
-    view.forEach(function (p) {
-      if (p.la == null) return;
-      var m = L.circleMarker([p.la, p.lo], markerStyle(p, sel === p.i));
-      m.bindTooltip(esc(p.n) + (p.o != null ? '  ' + p.o : ''), { className: 'tip', direction: 'top', offset: [0, -6] });
-      m.on('click', function () { openPlace(p.i, true); });
+    marks.forEach(function (mk) {
+      var i = mk[0], m = L.circleMarker([mk[1], mk[2]], markerStyle(TIERS[mk[3]], sel === i));
+      m.bindTooltip(function () { return tipText(i); }, { className: 'tip', direction: 'top', offset: [0, -6] });
+      // Names of places beyond the loaded list page are fetched on hover
+      m.on('mouseover', function () {
+        if (names[i]) return;
+        DS.peek([i]).then(function (r) { r.rows.forEach(function (x) { names[x[0]] = { n: x[1], o: x[2] }; }); m.setTooltipContent(tipText(i)); }, function () { /* tooltip stays '…' */ });
+      });
+      m.on('click', function () { openPlace(i, true); });
       m.addTo(layer);
-      markers[p.i] = m;
+      markers[i] = m;
     });
   }
   function restyle(i) {
-    var m = markers[i], p = byId[i];
-    if (!m || !p) return;
-    m.setStyle(markerStyle(p, sel === i));
+    var m = markers[i], mk = markById[i];
+    if (!m || !mk) return;
+    m.setStyle(markerStyle(TIERS[mk[3]], sel === i));
     if (sel === i) m.bringToFront();
   }
 
   // ---------- details ----------
-  var DETAILS = null, detailsP = null, byId = {};
-  P.forEach(function (p) { byId[p.i] = p; });
-  function loadDetails() {
-    if (DETAILS) return Promise.resolve(DETAILS);
-    if (!detailsP) detailsP = fetch('data/details.json?v=d03b135272').then(function (r) { return r.json(); }).then(function (d) { DETAILS = d; return d; });
-    return detailsP;
-  }
   function openPlace(i, fromMap) {
-    var p = byId[i];
-    if (!p) return;
     var prev = sel;
     sel = (prev === i && fromMap) ? null : i;
     if (sel === null) { closeDrawer(); return; }
@@ -353,13 +365,24 @@
     var li = document.querySelector('.item[data-i="' + i + '"]');
     if (li) { li.classList.add('sel'); if (fromMap) li.scrollIntoView({ block: 'nearest' }); }
     restyle(prev); restyle(i);
-    if (p.la != null && !fromMap) map.setView([p.la, p.lo], Math.max(map.getZoom(), 15), { animate: false });
+    var mk = markById[i];
+    if (mk && !fromMap) map.setView([mk[1], mk[2]], Math.max(map.getZoom(), 15), { animate: false });
     try { history.replaceState(null, '', '#p=' + i); } catch (e) { /* file url */ }
     var dr = $('drawer');
     dr.hidden = false;
     document.body.classList.add('drawer-open');
-    dr.innerHTML = '<div class="dbody"><h2>' + esc(p.n) + '</h2></div>';
-    loadDetails().then(function (D) { if (sel === i) renderDrawer(p, D[i] || {}); });
+    dr.innerHTML = '<div class="dbody"><h2>' + esc(names[i] ? names[i].n : '') + '</h2><p class="src">' + t('loading') + '</p></div>';
+    DS.place(i, { ref: refPoint() }).then(function (r) {
+      if (sel !== i) return;
+      if (!r) throw Object.assign(new Error('gone'), { status: 404 });
+      cur = r;
+      if (!mk && r.p.la != null && !fromMap) map.setView([r.p.la, r.p.lo], Math.max(map.getZoom(), 15), { animate: false });
+      renderDrawer(r.p, r.d);
+    }).catch(function (e) {
+      if (sel !== i) return;
+      dr.innerHTML = '<div class="close-wrap"><button class="close" id="dclose" aria-label="Close">×</button></div><div class="dbody"><p>' + esc(apiErrText(e)) + '</p></div>';
+      $('dclose').onclick = closeDrawer;
+    });
   }
   function closeDrawer() {
     var prev = sel;
@@ -402,7 +425,7 @@
     h.push('<div class="dhead"><div><h2>' + esc(p.n) + '</h2>' + (p.z ? '<div class="zh2">' + esc(p.z) + '</div>' : '') +
       '<div class="dline">' + esc(sub) + '</div>' +
       '<div class="dline">' + (p.a ? esc(p.a) + ' · ' : '') + '<a href="' + gmapsUrl(p, d) + '" target="_blank" rel="noopener">' + t('map_link') + '</a>' +
-      (p._d != null ? ' · <span class="dist">' + distLabel(p._d) + '</span>' : '') + '</div>' + (st ? '<div class="dline st">' + esc(st) + '</div>' : '') + '</div>' + scoreHtml(p.o, true) + '</div>');
+      (p.dk != null ? ' · <span class="dist">' + distLabel(p.dk) + '</span>' : '') + '</div>' + (st ? '<div class="dline st">' + esc(st) + '</div>' : '') + '</div>' + scoreHtml(p.o, true) + '</div>');
     var tags = (p.tg || []).map(function (g) { return TG[g] ? TG[g][lang === 'zh' ? 0 : 1] : g; });
     if (p.ag === 'r' || p.ag === 'y') tags.push(t(p.ag === 'r' ? 'age_r' : 'age_y'));
     if (tags.length) h.push('<div class="tags">' + tags.map(function (x) { return '<span class="tag">' + esc(x) + '</span>'; }).join('') + '</div>');
@@ -435,7 +458,7 @@
       var v = p.s ? p.s[j] : null;
       return '<div class="metric"><b>' + (v == null ? '—' : v) + '</b><span>' + t(k) + '</span><i><u style="width:' + (v || 0) + '%"></u></i></div>';
     }).join('') + '</div>');
-    if (X.drawer) h.push(X.drawer(p, d, lang) || '');
+    if (X.drawer) h.push(X.drawer(full(p), d, lang) || '');
     // Folded details
     if ((d.rt || []).length) {
       h.push(fold(t('ratings'), '<table class="rtab">' + d.rt.map(function (r) {
@@ -470,7 +493,7 @@
     var srcs = (d.src || []).map(function (s) { return s === 'osm' ? t('src_osm') : s === 'uw' ? t('src_uw') : t('src_phmdc'); });
     (d.rt || []).forEach(function (r) { if (srcs.indexOf(SRC[r[0]]) < 0) srcs.push(SRC[r[0]]); });
     h.push(fold(t('about'), '<div class="howbox"><p>' + esc(srcs.join(' · ')) + (d.lic ? '<br>' + t('lic') + esc(d.lic) : '') + '<br>' + t('built', { d: META.built || '' }) + '</p>' +
-      t('how_body').map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + '</div>'));
+      t('how_body').map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + (DS.remote ? '<p>' + esc(t('served')) + '</p>' : '') + '</div>'));
     h.push('</div>');
     var dr = $('drawer');
     dr.innerHTML = h.join('');
@@ -479,71 +502,64 @@
   }
 
   // ---------- delivery apps ----------
-  var pfilter = '', pshown = 150;
-  function platRating(d, c) {
-    var src = CODE_SRC[c], r = (d && d.rt || []).filter(function (x) { return x[0] === src; })[0];
-    return r ? { r: r[1], n: r[2], u: r[3] } : null;
+  // PS: the last answer (cards and price check come with the first page; rows grow with "more")
+  var pfilter = '', PS = null, pseq = 0;
+  function platQuery(offset) { return { pf: pfilter, text: $('pq').value.trim(), cuis: $('p-cuis').value, sort: $('p-sort').value, offset: offset || 0 }; }
+  function loadPlat() {
+    var my = ++pseq;
+    if (!PS) $('plat-list').innerHTML = '<p class="plat-note">' + t('loading') + '</p>';
+    DS.plat(platQuery(0)).then(function (r) {
+      if (my !== pseq) return;
+      PS = r;
+      drawPlat();
+    }, function (e) {
+      if (my !== pseq) return;
+      $('plat-list').innerHTML = '<p class="plat-note">' + esc(apiErrText(e)) + '</p>';
+    });
   }
-  function platLink(d, c) {
-    var src = CODE_SRC[c], l = (d && d.lk || []).filter(function (x) { return x[0] === src; })[0];
-    return l ? { u: l[1], on: l[2] } : null;
+  function morePlat(btn) {
+    var my = pseq;
+    btn.disabled = true;
+    DS.plat(platQuery(PS.rows.length)).then(function (r) {
+      if (my !== pseq) return;
+      PS.rows = PS.rows.concat(r.rows);
+      drawPlat();
+    }, function (e) { btn.disabled = false; btn.textContent = apiErrText(e); });
   }
-  function renderPlat() {
-    var D = DETAILS || {};
-    var base = P.filter(function (p) { return p.cl !== 1 && p.cl !== 3 && p.k !== 'market'; });
+  function drawPlat() {
+    if (!PS) return;
     // Cards
-    $('plat-cards').innerHTML = PCODES.map(function (c) {
-      var on = base.filter(function (p) { return (p.pf || '').indexOf(c) >= 0; });
-      var rs = on.map(function (p) { return platRating(D[p.i], c); }).filter(Boolean);
-      var avg = rs.length ? (rs.reduce(function (a, x) { return a + x.r; }, 0) / rs.length).toFixed(2) : '';
-      var excl = on.filter(function (p) { return p.pf === c; }).length;
+    $('plat-cards').innerHTML = (PS.cards || []).map(function (x) {
+      var c = x[0], avg = x[2] == null ? '' : x[2].toFixed(2);
       return '<button class="pcard" type="button" data-c="' + c + '" aria-pressed="' + (pfilter === c) + '"><div class="pn">' + PLAT[c] + '</div>' +
-        '<div class="pbig">' + on.length.toLocaleString() + '</div><div class="psub">' + t('p_count') + '</div>' +
-        '<div class="psub">' + (avg ? t('p_avg', { r: avg }) + ' · ' : '') + t('p_excl', { n: excl }) + '</div></button>';
+        '<div class="pbig">' + x[1].toLocaleString() + '</div><div class="psub">' + t('p_count') + '</div>' +
+        '<div class="psub">' + (avg ? t('p_avg', { r: avg }) + ' · ' : '') + t('p_excl', { n: x[3] }) + '</div></button>';
     }).join('');
     // Same dish, DoorDash vs Uber Eats (px = Uber Eats vs DoorDash, %)
-    var gaps = base.filter(function (p) { return p.px; }), same = 0, ued = 0, ddd = 0, diff = [];
-    gaps.forEach(function (p) { var g = p.px[0]; if (g === 0) same++; else { if (g > 0) ued++; else ddd++; diff.push(Math.abs(g)); } });
-    diff.sort(function (a, b) { return a - b; });
-    var p90 = diff.length ? diff[Math.min(diff.length - 1, Math.floor(diff.length * 0.9))] : 0;
-    $('plat-price').innerHTML = gaps.length < 20 ? '' : '<b>' + t(same / gaps.length >= 0.6 ? 'px_head_same' : 'px_head_diff') + '</b><p>' +
-      esc(t('px_body', { n: gaps.length.toLocaleString(), s: same.toLocaleString(), u: ued, d: ddd, p: p90 })) + '</p>';
+    var px = PS.price || { n: 0 };
+    $('plat-price').innerHTML = px.n < 20 ? '' : '<b>' + t(px.same / px.n >= 0.6 ? 'px_head_same' : 'px_head_diff') + '</b><p>' +
+      esc(t('px_body', { n: px.n.toLocaleString(), s: px.same.toLocaleString(), u: px.ued, d: px.ddd, p: px.p90 })) + '</p>';
     $('plat-note').textContent = t('plat_note', { d: META.built || '' });
-    var q = $('pq').value.trim().toLowerCase(), cuis = $('p-cuis').value, sort = $('p-sort').value;
-    var rows = base.filter(function (p) {
-      if (!(p.pl || '')) return false;
-      if (pfilter && (p.pf || '').indexOf(pfilter) < 0) return false;
-      if (cuis && (p.c || []).indexOf(cuis) < 0) return false;
-      if (q && (p.n + ' ' + (p.z || '')).toLowerCase().indexOf(q) < 0) return false;
-      return true;
-    });
-    function key(p) {
-      if (sort === 'napps') return (p.pf || '').length * 1000 + (p.o || 0);
-      if (sort.charAt(0) === 'r' && sort.length === 2) { var r = platRating(D[p.i], sort.charAt(1)); return r ? r.r * 1e6 + Math.min(r.n, 999999) : -1; }
-      return p.o == null ? -1 : p.o;
-    }
-    rows.sort(function (a, b) { return key(b) - key(a); });
     var head = '<div class="prow head"><span></span><span>' + t('col_place') + '</span><span>' + t('col_score') + '</span><div class="pcells">' +
       PCODES.map(function (c) { return '<span>' + PLAT[c] + '</span>'; }).join('') + '</div></div>';
-    var body = rows.slice(0, pshown).map(function (p) {
-      var d = D[p.i];
+    var body = PS.rows.map(function (p) {
       var cells = PCODES.map(function (c) {
-        var l = platLink(d, c), r = platRating(d, c);
+        var l = p.cells[c];
         if (!l) return '<div class="pcell nil"><span class="no">—</span></div>';
-        if (!l.on) return '<div class="pcell"><span class="paused"><span class="pa">' + PLAT[c] + ' · </span>' + t('listed') + '</span></div>';
+        if (!l[1]) return '<div class="pcell"><span class="paused"><span class="pa">' + PLAT[c] + ' · </span>' + t('listed') + '</span></div>';
         // App name (.pa) only shows on phones, where the column headers are hidden
-        var label = r ? '<span class="pa">' + PLAT[c] + ' </span>★ ' + Number(r.r).toFixed(1) : PLAT[c];
-        var cheap = p.px && p.px[0] !== 0 && c === (p.px[0] > 0 ? 'd' : 'u') ? '<small class="cheap">' + t('cheaper', { x: Math.abs(p.px[0]) }) + '</small>' : '';
-        return '<div class="pcell"><a href="' + esc(l.u) + '" target="_blank" rel="noopener" title="' + esc(t('order_on', { p: PLAT[c] })) + '">' + label + '</a>' +
-          (r ? '<small>' + (lang === 'zh' ? fmtN(r.n) + ' 条评分' : fmtN(r.n) + ' ratings') + '</small>' : '') + cheap + '</div>';
+        var label = l[2] != null ? '<span class="pa">' + PLAT[c] + ' </span>★ ' + Number(l[2]).toFixed(1) : PLAT[c];
+        var cheap = p.px && c === (p.px > 0 ? 'd' : 'u') ? '<small class="cheap">' + t('cheaper', { x: Math.abs(p.px) }) + '</small>' : '';
+        return '<div class="pcell"><a href="' + esc(l[0]) + '" target="_blank" rel="noopener" title="' + esc(t('order_on', { p: PLAT[c] })) + '">' + label + '</a>' +
+          (l[3] != null ? '<small>' + (lang === 'zh' ? fmtN(l[3]) + ' 条评分' : fmtN(l[3]) + ' ratings') + '</small>' : '') + cheap + '</div>';
       }).join('');
       return '<div class="prow" data-i="' + p.i + '">' + thumbHtml(p) + '<div class="pname"><b>' + esc(p.n) + (p.z ? ' ' + esc(p.z) : '') + '</b><span>' +
         esc([(p.c || []).slice(0, 2).map(cuisLabel).join(' / '), p.pr ? '$'.repeat(p.pr) : ''].filter(Boolean).join(' · ')) + '</span></div>' +
         scoreHtml(p.o) + '<div class="pcells">' + cells + '</div></div>';
     }).join('');
-    $('plat-list').innerHTML = head + body + (rows.length > pshown ? '<button class="more-btn" id="pmore">' + t('more', { n: Math.min(150, rows.length - pshown) }) + '</button>' : '');
+    $('plat-list').innerHTML = head + body + (PS.total > PS.rows.length ? '<button class="more-btn" id="pmore">' + t('more', { n: Math.min(60, PS.total - PS.rows.length) }) + '</button>' : '');
     var pm = $('pmore');
-    if (pm) pm.onclick = function () { pshown += 150; renderPlat(); };
+    if (pm) pm.onclick = function () { morePlat(pm); };
     $('plat-extra').innerHTML = X.platPanel ? (X.platPanel(lang) || '') : '';
   }
 
@@ -559,12 +575,14 @@
   $('lang').onclick = function () {
     lang = lang === 'zh' ? 'en' : 'zh';
     LS.set('lang', lang);
-    buildFilters(); i18n(); apply();
-    if (sel != null) loadDetails().then(function (D) { renderDrawer(byId[sel], D[sel] || {}); });
-    if ($('view-plat').classList.contains('active')) renderPlat();
+    // Same results in the other language: redraw, no new request
+    buildFilters(); i18n(); moreLabel();
+    if (view.length || total) renderList();
+    if (sel != null && cur && cur.p.i === sel) renderDrawer(cur.p, cur.d);
+    drawPlat();
   };
   var qt;
-  $('q').addEventListener('input', function () { clearTimeout(qt); qt = setTimeout(apply, 160); });
+  $('q').addEventListener('input', function () { clearTimeout(qt); qt = setTimeout(apply, DS.remote ? 250 : 160); });
   ['f-kind', 'f-cuis', 'f-plat', 'f-sort', 'f-rated', 'f-tag'].forEach(function (id) { $(id).addEventListener('change', apply); });
   $('f-open').onclick = function () { this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); apply(); };
   $('f-more').onclick = function () {
@@ -573,6 +591,7 @@
   $('f-from').addEventListener('change', function () {
     if ($('f-from').value === 'gps' && !gps && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(function (pos) { gps = [pos.coords.latitude, pos.coords.longitude]; apply(); }, function () { apply(); });
+      return;
     }
     apply();
   });
@@ -581,7 +600,7 @@
     b.onclick = function () {
       document.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('active', x === b); });
       document.querySelectorAll('.view').forEach(function (v) { v.classList.toggle('active', v.id === 'view-' + b.getAttribute('data-view')); });
-      if (b.getAttribute('data-view') === 'plat') { renderPlat(); loadDetails().then(renderPlat); }
+      if (b.getAttribute('data-view') === 'plat') { if (PS) drawPlat(); else loadPlat(); }
       else setTimeout(function () { map.invalidateSize(); }, 0);
     };
   });
@@ -589,11 +608,11 @@
     var b = e.target.closest('.pcard');
     if (!b) return;
     pfilter = pfilter === b.getAttribute('data-c') ? '' : b.getAttribute('data-c');
-    pshown = 150;
-    renderPlat();
+    loadPlat();
   });
-  $('pq').addEventListener('input', function () { pshown = 150; renderPlat(); });
-  ['p-cuis', 'p-sort'].forEach(function (id) { $(id).addEventListener('change', function () { pshown = 150; renderPlat(); }); });
+  var pqt;
+  $('pq').addEventListener('input', function () { clearTimeout(pqt); pqt = setTimeout(loadPlat, DS.remote ? 250 : 0); });
+  ['p-cuis', 'p-sort'].forEach(function (id) { $(id).addEventListener('change', loadPlat); });
   $('plat-list').addEventListener('click', function (e) {
     if (e.target.closest('a')) return;
     var row = e.target.closest('.prow[data-i]');
@@ -614,5 +633,5 @@
   var m = /#p=(\d+)/.exec(location.hash);
   if (m) openPlace(+m[1], false);
   // Local extensions may load data later; refresh what they decorate
-  if (X.load) X.load().then(function () { buildFilters(); apply(); if ($('view-plat').classList.contains('active')) renderPlat(); });
+  if (X.load) X.load().then(function () { buildFilters(); apply(); drawPlat(); });
 })();

@@ -35,4 +35,8 @@ Collected in October 2026 from: Public Health Madison & Dane County food licence
 
 Ratings are snapshots and belong to the services that publish them; follow the links for current figures. Review text is not republished here. Dish and storefront photos are the menu photos on the delivery apps' store pages and load from their servers. Fantuan and HungryPanda are app-only and are not covered.
 
+## How the data is served
+
+This repository holds the page only (`index.html`, `app.js`, `style.css`, `guard-client.js`). The dataset is not in it: a Cloudflare Worker answers the page one list page or one place at a time (`/api/search`, `/api/place`, `/api/plat`, `/api/peek`), and no endpoint returns everything at once. Every data request needs a session token that the page gets after an invisible Cloudflare Turnstile check, requests must come from this site, each client is rate-limited per minute, and each visitor and each network has a daily allowance counted in records. Requests are logged anonymously (the place opened and the filters used, with only a one-way hash of the IP address and never the location used for distances) so bulk copying shows up and can be blocked. That raises the cost of copying everything; it cannot make copying impossible, because anything the page shows a patient scraper can read too.
+
 Built on 2026-10-03.
