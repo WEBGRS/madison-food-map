@@ -44,7 +44,9 @@
   var T = {
     zh: {
       tab_map: '美食', tab_plat: '外卖平台', search_ph: '搜店名、菜系或菜名', search_ph2: '搜店名',
-      open_now: '营业中', more_filters: '更多筛选', dist_from: '距离从',
+      open_now: '营业中', more_filters: '更多筛选', dist_from: '距离从', theme: '切换黑白',
+      pick_title: '选菜系，可以多选', pick_clear: '清空', pick_done: '完成', cuis_n: '{a}等 {n} 种',
+      open_short: '营业至 {t}', open_short24: '24 小时营业',
       all_kinds: '所有类型', all_cuis: '所有菜系', any_plat: '不限外卖平台', no_plat: '不在任何外卖平台', on: '能在 {p} 下单',
       any_tag: '任何场合', all_rated: '有没有评分都显示', rated: '只看有评分的', confident: '只看评分人数多的',
       sort_overall: '综合排序', sort_taste: '口味最好', sort_pop: '最有人气', sort_value: '最划算', sort_hyg: '卫生最好',
@@ -85,7 +87,9 @@
     },
     en: {
       tab_map: 'Food', tab_plat: 'Delivery apps', search_ph: 'Name, cuisine or dish', search_ph2: 'Search by name',
-      open_now: 'Open now', more_filters: 'More filters', dist_from: 'Distance from',
+      open_now: 'Open now', more_filters: 'More filters', dist_from: 'Distance from', theme: 'Switch black and white',
+      pick_title: 'Cuisines: pick any', pick_clear: 'Clear', pick_done: 'Done', cuis_n: '{a} +{m}',
+      open_short: 'open till {t}', open_short24: 'open 24h',
       all_kinds: 'All types', all_cuis: 'All cuisines', any_plat: 'Any delivery app', no_plat: 'Not on any app', on: 'Order on {p}',
       any_tag: 'Any occasion', all_rated: 'Rated or not', rated: 'Rated only', confident: 'Well-rated only',
       sort_overall: 'Best overall', sort_taste: 'Best taste', sort_pop: 'Most popular', sort_value: 'Best value', sort_hyg: 'Cleanest',
@@ -215,8 +219,28 @@
       el.replaceWith(Object.assign(document.createElement('div'), { className: 'noimg' }));
     }
   }, true);
-  function metaLine(p) {
-    return [(p.c || []).slice(0, 2).map(cuisLabel).join(' / ') || kindLabel(p.k), p.pr ? '$'.repeat(p.pr) : '', distLabel(p.dk)].filter(Boolean).join(' · ');
+  // Up to three short points for a list row: cautions as solid tags, strengths in bold
+  function hlHtml(p, pre) {
+    var out = pre || '', prev = '';
+    (p.hl || []).forEach(function (h) {
+      var cls = h[2] < 0 ? 'warn' : h[2] > 0 ? 'good' : 'plain';
+      if (prev && prev !== 'warn' && cls !== 'warn') out += '<i>·</i>';
+      out += '<span class="' + cls + '">' + esc(lang === 'zh' ? h[0] : h[1]) + '</span>';
+      prev = cls;
+    });
+    return out ? '<div class="hl">' + out + '</div>' : '';
+  }
+  // Bold the facts inside the generated sentences: the rank, and what reviewers praise or complain about
+  function emph(x) {
+    return esc(x).replace(/排第 (\d+)/, '排<b>第 $1</b>').replace(/^#(\d+)/, '<b>#$1</b>')
+      .replace(/(常夸|吐槽)([^；。]+)/g, '$1<b>$2</b>').replace(/(Reviewers praise |[Cc]omplaints: )([^;.]+)/g, '$1<b>$2</b>');
+  }
+  // Cuisine · price · open until · distance (the distance is what gets cut on narrow screens)
+  function metaHtml(p, op) {
+    var parts = [(p.c || []).slice(0, 2).map(cuisLabel).join(' / ') || kindLabel(p.k), p.pr ? '$'.repeat(p.pr) : ''].filter(Boolean).map(esc);
+    if (op) parts.push('<span class="op">' + esc(op) + '</span>');
+    if (p.dk != null) parts.push(esc(distLabel(p.dk)));
+    return parts.join(' · ');
   }
 
   // ---------- filters ----------
@@ -224,12 +248,72 @@
     sel.innerHTML = opts.map(function (o) { return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>'; }).join('');
     if (val != null && opts.some(function (o) { return o[0] === val; })) sel.value = val;
   }
+  // Cuisine picker: tick any number; none ticked means all cuisines
+  function cuisPicker(id, opts) {
+    var btn = $(id), pop = $(id + '-pop'), picked = (opts.init || []).filter(function (c) { return CU[c]; }), timer = null;
+    function label() {
+      if (!picked.length) return t('all_cuis');
+      var names = picked.map(cuisLabel);
+      return names.length <= 2 ? names.join(lang === 'zh' ? '、' : ', ') : t('cuis_n', { a: names[0], n: names.length, m: names.length - 1 });
+    }
+    function sync() {
+      btn.textContent = label();
+      btn.classList.toggle('on', picked.length > 0);
+      var clear = pop.querySelector('[data-act="clear"]');
+      if (clear) clear.disabled = !picked.length;
+    }
+    function changed() {
+      sync();
+      clearTimeout(timer);
+      // Several ticks in a row send one request
+      timer = setTimeout(opts.onChange, DS.remote ? 350 : 60);
+    }
+    function grid() {
+      var n = COUNTS.cuis;
+      var list = Object.keys(CU).filter(function (c) { return n[c]; }).sort(function (a, b) { return n[b] - n[a]; });
+      pop.innerHTML = '<div class="pick-head"><b>' + t('pick_title') + '</b><button type="button" class="linkish" data-act="clear">' + t('pick_clear') + '</button></div>' +
+        '<div class="pick-grid">' + list.map(function (c) {
+          return '<label class="ck"><input type="checkbox" value="' + esc(c) + '"' + (picked.indexOf(c) >= 0 ? ' checked' : '') + '><span>' + esc(cuisLabel(c)) + '</span>' +
+            (opts.counts ? '<small>' + n[c] + '</small>' : '') + '</label>';
+        }).join('') + '</div><div class="pick-foot"><button type="button" class="pick-done" data-act="done">' + t('pick_done') + '</button></div>';
+      sync();
+    }
+    function show(on) {
+      pop.hidden = !on;
+      btn.setAttribute('aria-expanded', String(on));
+      if (on) { grid(); var f = pop.querySelector('input'); if (f) f.focus({ preventScroll: true }); }
+    }
+    btn.addEventListener('click', function () { show(pop.hidden); });
+    pop.addEventListener('change', function (e) {
+      if (e.target.type !== 'checkbox') return;
+      var c = e.target.value, k = picked.indexOf(c);
+      if (e.target.checked && k < 0) picked.push(c);
+      if (!e.target.checked && k >= 0) picked.splice(k, 1);
+      changed();
+    });
+    pop.addEventListener('click', function (e) {
+      var a = e.target.closest('[data-act]');
+      if (!a) return;
+      if (a.getAttribute('data-act') === 'clear') {
+        picked = [];
+        pop.querySelectorAll('input').forEach(function (x) { x.checked = false; });
+        changed();
+      } else { show(false); btn.focus(); }
+    });
+    return {
+      get: function () { return picked.slice(); },
+      open: function () { return !pop.hidden; },
+      hide: function (focus) { if (!pop.hidden) { show(false); if (focus) btn.focus(); } },
+      owns: function (el) { return btn.parentNode.contains(el); },
+      redraw: function () { if (pop.hidden) sync(); else grid(); }
+    };
+  }
+  var cuisPick = cuisPicker('f-cuis', { counts: true, init: LS.get('cuis', '').split(','), onChange: function () { apply(); } });
+  var platPick = cuisPicker('p-cuis', { onChange: function () { loadPlat(); } });
   function buildFilters() {
-    var kinds = COUNTS.kinds, cuis = COUNTS.cuis, tcount = COUNTS.tags;
-    var copts = [['', t('all_cuis')]].concat(Object.keys(CU).filter(function (c) { return cuis[c]; })
-      .sort(function (a, b) { return cuis[b] - cuis[a]; }).map(function (c) { return [c, cuisLabel(c)]; }));
-    fillSelect($('f-cuis'), copts, LS.get('cuis', ''));
-    fillSelect($('p-cuis'), copts, '');
+    var kinds = COUNTS.kinds, tcount = COUNTS.tags;
+    cuisPick.redraw();
+    platPick.redraw();
     fillSelect($('f-sort'), [['overall', t('sort_overall')], ['taste', t('sort_taste')], ['pop', t('sort_pop')], ['value', t('sort_value')],
       ['hyg', t('sort_hyg')], ['dist', t('sort_dist')], ['count', t('sort_count')]], LS.get('sort', 'overall'));
     fillSelect($('f-kind'), [['', t('all_kinds')]].concat(['restaurant', 'fast_food', 'cafe', 'dessert', 'bar', 'cart', 'market', 'virtual']
@@ -251,7 +335,7 @@
   function seed(r) { names[r.i] = { n: r.n, o: r.o }; }
   function queryParams(offset) {
     return {
-      text: $('q').value.trim(), kind: $('f-kind').value, cuis: $('f-cuis').value, plat: $('f-plat').value, tag: $('f-tag').value,
+      text: $('q').value.trim(), kind: $('f-kind').value, cuis: cuisPick.get(), plat: $('f-plat').value, tag: $('f-tag').value,
       open: $('f-open').getAttribute('aria-pressed') === 'true', rated: $('f-rated').value, sort: $('f-sort').value,
       ref: refPoint(), from: $('f-from').value, offset: offset || 0
     };
@@ -295,10 +379,11 @@
     $('count').textContent = t('count', { n: total.toLocaleString() });
     var html = view.map(function (p) {
       var st = p.st, open = st && st.open && !p.cl;
+      var op = open ? (st.all ? t('open_short24') : t('open_short', { t: hm(st.until) })) : '';
       return '<li class="item' + (sel === p.i ? ' sel' : '') + '" data-i="' + p.i + '">' + thumbHtml(p) +
         '<div class="body"><div class="nm">' + esc(p.n) + (p.z ? '<span class="zh">' + esc(p.z) + '</span>' : '') + '</div>' +
-        '<div class="meta">' + esc(metaLine(p)) + (X.badge ? X.badge(full(p), lang) : '') + '</div>' +
-        (open ? '<div class="open">' + esc(statusText(p)) + '</div>' : (p.cl ? '<div class="open">' + esc(statusText(p)) + '</div>' : '')) +
+        hlHtml(p, X.badge ? X.badge(full(p), lang) : '') + '<div class="meta">' + metaHtml(p, op) + '</div>' +
+        (p.cl ? '<div class="flag">' + esc(statusText(p)) + '</div>' : '') +
         '</div>' + scoreHtml(p.o) + '</li>';
     }).join('');
     if (total > view.length) html += '<li><button class="more-btn" id="more">' + t('more', { n: Math.min(60, total - view.length) }) + '</button></li>';
@@ -317,7 +402,11 @@
   var legend = L.control({ position: 'bottomleft' });
   legend.onAdd = function () { var d = L.DomUtil.create('div', 'legend'); d.id = 'legend'; return d; };
   legend.addTo(map);
-  function dark() { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; }
+  function dark() {
+    var th = document.documentElement.getAttribute('data-theme');
+    if (th) return th === 'dark';
+    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
   var TIERS = ['na', 's3', 's2', 's1'];
   function markerStyle(tr, on) {
     var ink = dark() ? '#fff' : '#000', paper = dark() ? '#000' : '#fff';
@@ -426,6 +515,13 @@
       '<div class="dline">' + esc(sub) + '</div>' +
       '<div class="dline">' + (p.a ? esc(p.a) + ' · ' : '') + '<a href="' + gmapsUrl(p, d) + '" target="_blank" rel="noopener">' + t('map_link') + '</a>' +
       (p.dk != null ? ' · <span class="dist">' + distLabel(p.dk) + '</span>' : '') + '</div>' + (st ? '<div class="dline st">' + esc(st) + '</div>' : '') + '</div>' + scoreHtml(p.o, true) + '</div>');
+    // The verdict sits right under the name: warnings, the one-line verdict, then rank and what reviewers say
+    var an = (d.an && d.an[lang]) || [], nk = d.an ? d.an.k : an.length, nw = d.an ? d.an.w || 0 : 0;
+    if (nk) {
+      h.push('<section class="verdict">' + an.slice(0, nw).map(function (x) { return '<p class="warn">' + esc(x) + '</p>'; }).join('') +
+        (nk > nw ? '<p class="lead">' + esc(an[nw]) + '</p>' : '') +
+        an.slice(nw + 1, nk).map(function (x) { return '<p>' + emph(x) + '</p>'; }).join('') + '</section>');
+    }
     var tags = (p.tg || []).map(function (g) { return TG[g] ? TG[g][lang === 'zh' ? 0 : 1] : g; });
     if (p.ag === 'r' || p.ag === 'y') tags.push(t(p.ag === 'r' ? 'age_r' : 'age_y'));
     if (tags.length) h.push('<div class="tags">' + tags.map(function (x) { return '<span class="tag">' + esc(x) + '</span>'; }).join('') + '</div>');
@@ -450,13 +546,11 @@
         return '<li><span>' + esc(x[0]) + (x[1] ? ' ' + esc(x[1]) : '') + '</span><span>' + (x[2] ? '$' + Number(x[2]).toFixed(2) : '') + '</span></li>';
       }).join('') + '</ul></section>');
     }
-    // Key lines
-    var an = (d.an && d.an[lang]) || [], nk = d.an ? d.an.k : an.length, nw = d.an ? d.an.w || 0 : 0;
-    if (an.length) h.push('<section class="sec key">' + an.slice(0, nk).map(function (x, j) { return '<p' + (j < nw ? ' class="warn"' : '') + '>' + esc(x) + '</p>'; }).join('') + '</section>');
+    // Five scores: strong ones solid, weak ones faded
     var labels = ['taste', 'pop', 'value', 'hyg', 'conv'];
     h.push('<div class="metrics">' + labels.map(function (k, j) {
-      var v = p.s ? p.s[j] : null;
-      return '<div class="metric"><b>' + (v == null ? '—' : v) + '</b><span>' + t(k) + '</span><i><u style="width:' + (v || 0) + '%"></u></i></div>';
+      var v = p.s ? p.s[j] : null, lv = v == null ? '' : v >= 80 ? ' hi' : v < 50 ? ' lo' : '';
+      return '<div class="metric' + lv + '"><b>' + (v == null ? '—' : v) + '</b><span>' + t(k) + '</span><i><u style="width:' + (v || 0) + '%"></u></i></div>';
     }).join('') + '</div>');
     if (X.drawer) h.push(X.drawer(full(p), d, lang) || '');
     // Folded details
@@ -504,7 +598,7 @@
   // ---------- delivery apps ----------
   // PS: the last answer (cards and price check come with the first page; rows grow with "more")
   var pfilter = '', PS = null, pseq = 0;
-  function platQuery(offset) { return { pf: pfilter, text: $('pq').value.trim(), cuis: $('p-cuis').value, sort: $('p-sort').value, offset: offset || 0 }; }
+  function platQuery(offset) { return { pf: pfilter, text: $('pq').value.trim(), cuis: platPick.get(), sort: $('p-sort').value, offset: offset || 0 }; }
   function loadPlat() {
     var my = ++pseq;
     if (!PS) $('plat-list').innerHTML = '<p class="plat-note">' + t('loading') + '</p>';
@@ -569,6 +663,8 @@
     document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
     document.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.placeholder = t(el.getAttribute('data-i18n-ph')); });
     $('lang').textContent = lang === 'zh' ? 'EN' : '中文';
+    $('theme').setAttribute('aria-label', t('theme'));
+    $('theme').title = t('theme');
     $('switcher').textContent = document.body.classList.contains('show-map') ? t('show_list') : t('show_map');
     renderLegend();
   }
@@ -583,7 +679,10 @@
   };
   var qt;
   $('q').addEventListener('input', function () { clearTimeout(qt); qt = setTimeout(apply, DS.remote ? 250 : 160); });
-  ['f-kind', 'f-cuis', 'f-plat', 'f-sort', 'f-rated', 'f-tag'].forEach(function (id) { $(id).addEventListener('change', apply); });
+  ['f-kind', 'f-plat', 'f-sort', 'f-rated', 'f-tag'].forEach(function (id) { $(id).addEventListener('change', apply); });
+  document.addEventListener('click', function (e) {
+    [cuisPick, platPick].forEach(function (pk) { if (pk.open() && !pk.owns(e.target)) pk.hide(false); });
+  });
   $('f-open').onclick = function () { this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); apply(); };
   $('f-more').onclick = function () {
     var p = $('more-panel'); p.hidden = !p.hidden; this.setAttribute('aria-expanded', String(!p.hidden));
@@ -612,7 +711,7 @@
   });
   var pqt;
   $('pq').addEventListener('input', function () { clearTimeout(pqt); pqt = setTimeout(loadPlat, DS.remote ? 250 : 0); });
-  ['p-cuis', 'p-sort'].forEach(function (id) { $(id).addEventListener('change', loadPlat); });
+  $('p-sort').addEventListener('change', loadPlat);
   $('plat-list').addEventListener('click', function (e) {
     if (e.target.closest('a')) return;
     var row = e.target.closest('.prow[data-i]');
@@ -621,7 +720,19 @@
     openPlace(+row.getAttribute('data-i'), false);
   });
   $('switcher').onclick = function () { document.body.classList.toggle('show-map'); i18n(); setTimeout(function () { map.invalidateSize(); }, 0); };
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sel != null) closeDrawer(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var pk = [cuisPick, platPick].filter(function (x) { return x.open(); })[0];
+    if (pk) pk.hide(true);
+    else if (sel != null) closeDrawer();
+  });
+  // Black on white or white on black; follows the system until the button is used
+  $('theme').onclick = function () {
+    var next = dark() ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    LS.set('theme', next);
+    renderLegend(); renderMarkers();
+  };
   if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { renderLegend(); renderMarkers(); });
 
   // Small API for local extensions

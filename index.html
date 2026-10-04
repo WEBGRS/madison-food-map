@@ -6,11 +6,12 @@
 <title>Madison Eats</title>
 <meta name="description" content="Every place to eat in Madison, WI on one map, with ratings from Google, DoorDash, Uber Eats, Toast, EatStreet and Grubhub, health inspections, and which delivery apps carry each one.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='16' fill='black'/%3E%3Ctext x='16' y='22' font-family='Arial,sans-serif' font-weight='800' font-size='17' fill='white' text-anchor='middle'%3EM%3C/text%3E%3C/svg%3E">
+<script>try { var th = localStorage.getItem('me:theme'); if (th === 'dark' || th === 'light') document.documentElement.setAttribute('data-theme', th); } catch (e) {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="style.css?v=d84c86726e">
+<link rel="stylesheet" href="style.css?v=d45811d01f">
 </head>
 <body>
 <header class="top">
@@ -19,7 +20,12 @@
     <button role="tab" class="tab active" data-view="map" data-i18n="tab_map">美食</button>
     <button role="tab" class="tab" data-view="plat" data-i18n="tab_plat">外卖平台</button>
   </nav>
-  <div class="top-right"><button class="lang" id="lang" aria-label="Switch language">EN</button></div>
+  <div class="top-right">
+    <button class="iconbtn" id="theme" type="button" aria-label="切换黑白" title="切换黑白">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg>
+    </button>
+    <button class="lang" id="lang" aria-label="Switch language">EN</button>
+  </div>
 </header>
 
 <main id="view-map" class="view active">
@@ -27,7 +33,7 @@
     <div class="filters">
       <input id="q" class="search" type="search" autocomplete="off" data-i18n-ph="search_ph" placeholder="搜店名、菜系或菜名">
       <div class="frow">
-        <select id="f-cuis" aria-label="Cuisine"></select>
+        <div class="picker"><button class="pick-btn" id="f-cuis" type="button" aria-haspopup="true" aria-expanded="false"></button><div class="pick-pop" id="f-cuis-pop" hidden></div></div>
         <select id="f-sort" aria-label="Sort"></select>
         <button class="chip" id="f-open" type="button" aria-pressed="false" data-i18n="open_now">营业中</button>
         <button class="chip" id="f-more" type="button" aria-expanded="false" data-i18n="more_filters">更多筛选</button>
@@ -57,7 +63,7 @@
     <p class="plat-note" id="plat-note"></p>
     <div class="plat-tools">
       <input id="pq" class="search" type="search" autocomplete="off" data-i18n-ph="search_ph2" placeholder="搜店名">
-      <select id="p-cuis" aria-label="Cuisine"></select>
+      <div class="picker"><button class="pick-btn" id="p-cuis" type="button" aria-haspopup="true" aria-expanded="false"></button><div class="pick-pop" id="p-cuis-pop" hidden></div></div>
       <select id="p-sort" aria-label="Sort"></select>
     </div>
     <div id="plat-list"></div>
@@ -68,6 +74,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="data/config.js?v=32ab0ec65c"></script>
 <script src="guard-client.js?v=9af92d3c84"></script>
-<script src="app.js?v=4da6d9aa08"></script>
+<script src="app.js?v=fa94063f53"></script>
 </body>
 </html>
