@@ -54,6 +54,7 @@
       sort_dist: '离我最近', sort_count: '评分人数最多',
       from_home: '家', from_gps: '我的位置', from_campus: '校园 Library Mall', from_capitol: '州议会',
       count: '{n} 家', more: '再显示 {n} 家', empty: '没有符合条件的店，换个关键词或者放宽筛选试试。', show_map: '地图', show_list: '列表',
+      reset: '清除搜索和筛选', foot: '数据来自县卫生局执照与检查记录、OpenStreetMap、Google 地图、DoorDash、Uber Eats、Grubhub、EatStreet、Toast 和 r/madisonwi，更新于 {d}。分数是和麦迪逊其他店比的相对分，50 大约是中位数。',
       open_until: '营业中，{t} 关门', open_24: '24 小时营业', opens_at: '{d}{t} 开门', today: '今天 ', tomorrow: '明天 ',
       closed_today: '今天休息', perm_closed: '可能已永久关闭', temp_closed: '暂停营业', maybe_closed: '可能已关门或换店',
       taste: '口味', pop: '人气', value: '性价比', hyg: '卫生', conv: '方便', not_rated: '暂无评分',
@@ -98,6 +99,7 @@
       sort_dist: 'Closest', sort_count: 'Most ratings',
       from_home: 'Home', from_gps: 'My location', from_campus: 'Campus (Library Mall)', from_capitol: 'Capitol',
       count: '{n} places', more: 'Show {n} more', empty: 'Nothing matches. Try another word or loosen the filters.', show_map: 'Map', show_list: 'List',
+      reset: 'Clear search and filters', foot: 'Data from county food licences and inspections, OpenStreetMap, Google Maps, DoorDash, Uber Eats, Grubhub, EatStreet, Toast and r/madisonwi, updated {d}. Scores are relative to other Madison places; 50 is about the median.',
       open_until: 'Open until {t}', open_24: 'Open 24 hours', opens_at: 'Opens {d}{t}', today: '', tomorrow: 'tomorrow ',
       closed_today: 'Closed today', perm_closed: 'May be permanently closed', temp_closed: 'Temporarily closed', maybe_closed: 'May have closed or changed',
       taste: 'Taste', pop: 'Popularity', value: 'Value', hyg: 'Hygiene', conv: 'Convenience', not_rated: 'No ratings yet',
@@ -223,6 +225,11 @@
       el.replaceWith(Object.assign(document.createElement('span'), { className: 'ph', textContent: el.getAttribute('data-ini') || '' }));
     }
   }, true);
+  // Photos fade in once loaded (load does not bubble, so listen while it travels down)
+  document.addEventListener('load', function (e) { if (e.target && e.target.tagName === 'IMG') e.target.classList.add('ld'); }, true);
+  function markLoaded(root) {
+    root.querySelectorAll('img:not(.ld)').forEach(function (im) { if (im.complete && im.naturalWidth) im.classList.add('ld'); });
+  }
   // Cards show the same photo larger: ask each image host for 480 x 360 instead of the 240 x 240 thumbnail
   function bigImg(u) {
     return u.replace('width=240,height=240', 'width=480,height=360').replace('w=240&h=240', 'w=480&h=360')
@@ -237,8 +244,9 @@
     var out = pre || '', prev = '';
     (p.hl || []).forEach(function (h) {
       var cls = h[2] < 0 ? 'warn' : h[2] > 0 ? 'good' : 'plain';
-      if (prev && prev !== 'warn' && cls !== 'warn') out += '<i>·</i>';
-      out += '<span class="' + cls + '">' + esc(lang === 'zh' ? h[0] : h[1]) + '</span>';
+      // The dot belongs to the item after it, so hiding an item hides its dot
+      var dot = prev && prev !== 'warn' && cls !== 'warn' ? '<i>·</i>' : '';
+      out += '<span class="' + cls + '">' + dot + esc(lang === 'zh' ? h[0] : h[1]) + '</span>';
       prev = cls;
     });
     return out ? '<div class="hl">' + out + '</div>' : '';
@@ -317,6 +325,7 @@
       get: function () { return picked.slice(); },
       open: function () { return !pop.hidden; },
       hide: function (focus) { if (!pop.hidden) { show(false); if (focus) btn.focus(); } },
+      clear: function () { picked = []; pop.querySelectorAll('input').forEach(function (x) { x.checked = false; }); sync(); },
       owns: function (el) { return btn.parentNode.contains(el); },
       redraw: function () { if (pop.hidden) sync(); else grid(); }
     };
@@ -363,31 +372,60 @@
     LS.set('from', q.from);
     moreLabel();
     var my = ++seq;
-    if (!view.length) $('count').textContent = $('gcount').textContent = t('loading');
+    // First load: placeholder cards; later: the old results dim until the new ones arrive
+    if (!view.length) {
+      $('count').textContent = $('gcount').textContent = t('loading');
+      $('grid').innerHTML = new Array(9).join('<li class="sk" aria-hidden="true"><div class="cimg"></div><i></i><i></i></li>');
+    } else {
+      $('grid').classList.add('busy');
+      $('list').classList.add('busy');
+    }
     DS.search(q).then(function (r) {
       if (my !== seq) return;
       view = r.rows; total = r.total; marks = r.markers || [];
       markById = {};
       marks.forEach(function (m) { markById[m[0]] = m; });
       view.forEach(seed);
+      animFrom = 0;
       renderList();
       renderMarkers();
+      // New results start at the top
+      $('gwrap').scrollTop = 0;
+      $('list').scrollTop = 0;
     }, function (e) {
       if (my !== seq) return;
       $('count').textContent = $('gcount').textContent = '';
-      $('list').innerHTML = $('grid').innerHTML = '<li class="empty">' + esc(apiErrText(e)) + '</li>';
+      $('list').innerHTML = $('grid').innerHTML = '<li class="empty"><p>' + esc(apiErrText(e)) + '</p></li>';
+      $('grid').classList.remove('busy');
+      $('list').classList.remove('busy');
       $('gmore').hidden = true;
     });
   }
   function loadMore(btn) {
-    var my = seq;
+    var my = seq, had = view.length;
     btn.disabled = true;
     DS.search(queryParams(view.length)).then(function (r) {
       if (my !== seq) return;
       r.rows.forEach(seed);
       view = view.concat(r.rows);
+      animFrom = had;
       renderList();
     }, function (e) { btn.disabled = false; btn.textContent = apiErrText(e); });
+  }
+  // Nothing found: say so, and offer to drop the search and filters when there are any
+  function filtered() {
+    return !!($('q').value.trim() || cuisPick.get().length || $('f-open').getAttribute('aria-pressed') === 'true' ||
+      ['f-kind', 'f-tag', 'f-plat', 'f-rated'].some(function (id) { return $(id).value; }));
+  }
+  function emptyHtml() {
+    return '<li class="empty"><p>' + t('empty') + '</p>' + (filtered() ? '<button class="reset" type="button" data-reset>' + t('reset') + '</button>' : '') + '</li>';
+  }
+  function resetFilters() {
+    $('q').value = '';
+    cuisPick.clear();
+    $('f-open').setAttribute('aria-pressed', 'false');
+    ['f-kind', 'f-tag', 'f-plat', 'f-rated'].forEach(function (id) { $(id).value = ''; });
+    apply();
   }
   function renderList() {
     $('count').textContent = t('count', { n: total.toLocaleString() });
@@ -401,22 +439,28 @@
         '</div>' + scoreHtml(p.o) + '</li>';
     }).join('');
     if (total > view.length) html += '<li><button class="more-btn" id="more">' + t('more', { n: Math.min(60, total - view.length) }) + '</button></li>';
-    if (!view.length) html = '<li class="empty">' + t('empty') + '</li>';
+    if (!view.length) html = emptyHtml();
     $('list').innerHTML = html;
+    $('list').classList.remove('busy');
+    markLoaded($('list'));
     var mb = $('more');
     if (mb) mb.onclick = function (e) { e.stopPropagation(); loadMore(mb); };
     renderGrid();
   }
   // Full-width cards from the same results; a card is a link, so the browser's back button returns here
+  var animFrom = 1e9;  // cards from this index fade in (new results, or the page "more" just added)
   function renderGrid() {
     $('gcount').textContent = t('count', { n: total.toLocaleString() });
-    $('grid').innerHTML = view.length ? view.map(function (p) {
+    $('grid').innerHTML = view.length ? view.map(function (p, k) {
       var st = p.st, open = st && st.open && !p.cl;
       var op = open ? (st.all ? t('open_short24') : t('open_short', { t: hm(st.until) })) : '';
-      return '<li><a class="card" href="#p=' + p.i + '">' + cardImg(p) + '<div class="cbody"><div class="nm">' + esc(p.n) +
-        (p.z ? '<span class="zh">' + esc(p.z) + '</span>' : '') + '</div>' + hlHtml(p, X.badge ? X.badge(full(p), lang) : '') +
+      return '<li' + (k >= animFrom ? ' class="in" style="--k:' + Math.min(k - animFrom, 12) + '"' : '') + '><a class="card" href="#p=' + p.i + '">' + cardImg(p) +
+        '<div class="cbody"><div class="nm">' + esc(p.n) + (p.z ? '<span class="zh">' + esc(p.z) + '</span>' : '') + '</div>' + hlHtml(p, X.badge ? X.badge(full(p), lang) : '') +
         '<div class="meta">' + metaHtml(p, op) + '</div>' + (p.cl ? '<div class="flag">' + esc(statusText(p)) + '</div>' : '') + '</div></a></li>';
-    }).join('') : '<li class="empty">' + t('empty') + '</li>';
+    }).join('') : emptyHtml();
+    animFrom = 1e9;
+    $('grid').classList.remove('busy');
+    markLoaded($('grid'));
     var gm = $('gmore'), left = total - view.length;
     gm.hidden = left <= 0;
     gm.disabled = false;
@@ -460,6 +504,9 @@
       var i = mk[0], m = L.circleMarker([mk[1], mk[2]], markerStyle(TIERS[mk[3]], sel === i));
       m.bindTooltip(function () { return tipText(i); }, { className: 'tip', direction: 'top', offset: [0, -6] });
       // Names of places beyond the loaded list page are fetched on hover
+      // A dot grows a little under the pointer
+      m.on('mouseover', function () { if (sel !== i) m.setStyle({ radius: markerStyle(TIERS[mk[3]], false).radius + 2.5 }); });
+      m.on('mouseout', function () { if (sel !== i) m.setStyle(markerStyle(TIERS[mk[3]], false)); });
       m.on('mouseover', function () {
         if (names[i]) return;
         DS.peek([i]).then(function (r) { r.rows.forEach(function (x) { names[x[0]] = { n: x[1], o: x[2] }; }); m.setTooltipContent(tipText(i)); }, function () { /* tooltip stays '…' */ });
@@ -630,6 +677,7 @@
     dr.innerHTML = '<div class="close-wrap"><button class="close" id="dclose" aria-label="Close">×</button></div>' + o.hero +
       '<div class="dbody">' + o.head(true) + o.verdict + o.tags + o.actions + o.host + o.dishes + o.metrics + o.ext + o.folds + '</div>';
     dr.scrollTop = 0;
+    markLoaded(dr);
     $('dclose').onclick = closeDrawer;
   }
 
@@ -644,6 +692,7 @@
       '<div class="gp-body">' + o.dishes + o.ext + o.folds + '</div></div>' +
       '<aside class="gp-side">' + loc + o.addr + o.actions + o.host + o.metrics + '</aside></div>';
     $('gback').onclick = leavePage;
+    markLoaded(g);
     if (loc) miniMap(p);
   }
   function miniMap(p) {
@@ -660,7 +709,10 @@
     g.hidden = false;
     g.scrollTop = 0;
     document.body.classList.add('page-open');
-    g.innerHTML = pageBar() + '<div class="gp"><div class="gp-head"><h2>' + esc(names[i] ? names[i].n : '') + '</h2><p class="src">' + t('loading') + '</p></div></div>';
+    // Placeholder shapes in the page's own layout while the place loads
+    g.innerHTML = pageBar() + '<div class="gp" aria-busy="true"><div class="gp-main"><div class="gp-hero"><div class="hero sk-box"></div></div>' +
+      '<div class="gp-head"><h2>' + esc(names[i] ? names[i].n : '') + '</h2><i class="sk-line"></i><i class="sk-line short"></i></div></div>' +
+      '<aside class="gp-side"><div class="gp-map sk-box"></div><i class="sk-line"></i></aside></div>';
     $('gback').onclick = leavePage;
     DS.place(i, { ref: refPoint() }).then(function (r) {
       if (pageId !== i) return;
@@ -747,6 +799,7 @@
         scoreHtml(p.o) + '<div class="pcells">' + cells + '</div></div>';
     }).join('');
     $('plat-list').innerHTML = head + body + (PS.total > PS.rows.length ? '<button class="more-btn" id="pmore">' + t('more', { n: Math.min(60, PS.total - PS.rows.length) }) + '</button>' : '');
+    markLoaded($('plat-list'));
     var pm = $('pmore');
     if (pm) pm.onclick = function () { morePlat(pm); };
     $('plat-extra').innerHTML = X.platPanel ? (X.platPanel(lang) || '') : '';
@@ -765,6 +818,7 @@
     $('lang').textContent = lang === 'zh' ? 'EN' : '中文';
     $('theme').setAttribute('aria-label', t('theme'));
     $('theme').title = t('theme');
+    $('gfoot').textContent = t('foot', { d: META.built || '' });
     $('switcher').textContent = document.body.classList.contains('show-map') ? t('show_list') : t('show_map');
     renderLegend();
   }
@@ -797,6 +851,7 @@
   });
   $('list').addEventListener('click', function (e) { var li = e.target.closest('.item'); if (li) openPlace(+li.getAttribute('data-i'), false); });
   $('gmore').onclick = function () { loadMore(this); };
+  document.addEventListener('click', function (e) { if (e.target.closest('[data-reset]')) resetFilters(); });
   // Views: the card grid, the map with its list, the delivery apps; one filter bar moves to whichever list is showing
   var curView = 'grid';
   function showView(name) {
@@ -854,9 +909,14 @@
     else if (sel != null) closeDrawer();
   });
   // Black on white or white on black; follows the system until the button is used
+  var themeT = null;
   $('theme').onclick = function () {
-    var next = dark() ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', next);
+    var next = dark() ? 'light' : 'dark', root = document.documentElement;
+    // Colours cross-fade for a moment instead of flipping
+    root.classList.add('theming');
+    clearTimeout(themeT);
+    themeT = setTimeout(function () { root.classList.remove('theming'); }, 450);
+    root.setAttribute('data-theme', next);
     LS.set('theme', next);
     renderLegend(); renderMarkers();
     if (gmark) gmark.setStyle(markerStyle('s1', true));
