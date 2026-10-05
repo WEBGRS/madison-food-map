@@ -43,7 +43,8 @@
 
   var T = {
     zh: {
-      tab_map: '美食', tab_plat: '外卖平台', search_ph: '搜店名、菜系或菜名', search_ph2: '搜店名',
+      tab_grid: '全部餐馆', tab_grid_s: '全部', tab_map: '地图', tab_map_s: '地图', tab_plat: '外卖平台', tab_plat_s: '外卖',
+      back: '← 全部餐馆', map_of: '{n} 的位置', search_ph: '搜店名、菜系或菜名', search_ph2: '搜店名',
       open_now: '营业中', more_filters: '更多筛选', dist_from: '距离从', theme: '切换黑白',
       pick_title: '选菜系，可以多选', pick_clear: '清空', pick_done: '完成', cuis_n: '{a}等 {n} 种',
       open_short: '营业至 {t}', open_short24: '24 小时营业',
@@ -86,7 +87,8 @@
       served: '为防止数据被批量复制，页面不会把全部数据一次发给浏览器，而是按需向服务器要：列表一次一页，店的详情点开才取，每个访客每天能看的数量有上限。每次请求会匿名记录（看了哪家店、用了哪些筛选和搜索词），用来改进页面和发现批量抓取。不记录姓名，IP 只存不可逆的哈希，不用 cookie；算距离用的位置会四舍五入到约 100 米，且不记录。'
     },
     en: {
-      tab_map: 'Food', tab_plat: 'Delivery apps', search_ph: 'Name, cuisine or dish', search_ph2: 'Search by name',
+      tab_grid: 'All places', tab_grid_s: 'All', tab_map: 'Map', tab_map_s: 'Map', tab_plat: 'Delivery apps', tab_plat_s: 'Delivery',
+      back: '← All places', map_of: 'Where {n} is', search_ph: 'Name, cuisine or dish', search_ph2: 'Search by name',
       open_now: 'Open now', more_filters: 'More filters', dist_from: 'Distance from', theme: 'Switch black and white',
       pick_title: 'Cuisines: pick any', pick_clear: 'Clear', pick_done: 'Done', cuis_n: '{a} +{m}',
       open_short: 'open till {t}', open_short24: 'open 24h',
@@ -217,8 +219,19 @@
       el.closest('.hero').remove();
     } else if (el.closest('.dish')) {
       el.replaceWith(Object.assign(document.createElement('div'), { className: 'noimg' }));
+    } else if (el.closest('.cimg')) {
+      el.replaceWith(Object.assign(document.createElement('span'), { className: 'ph', textContent: el.getAttribute('data-ini') || '' }));
     }
   }, true);
+  // Cards show the same photo larger: ask each image host for 480 x 360 instead of the 240 x 240 thumbnail
+  function bigImg(u) {
+    return u.replace('width=240,height=240', 'width=480,height=360').replace('w=240&h=240', 'w=480&h=360')
+      .replace('w_240,h_240', 'w_480,h_360').replace('=w240-h240-', '=w480-h360-');
+  }
+  function cardImg(p) {
+    return '<div class="cimg">' + (p.im ? '<img loading="lazy" decoding="async" referrerpolicy="no-referrer" alt="" data-ini="' + initial(p) + '" src="' + esc(bigImg(p.im)) + '">'
+      : '<span class="ph" aria-hidden="true">' + initial(p) + '</span>') + scoreHtml(p.o) + '</div>';
+  }
   // Up to three short points for a list row: cautions as solid tags, strengths in bold
   function hlHtml(p, pre) {
     var out = pre || '', prev = '';
@@ -350,7 +363,7 @@
     LS.set('from', q.from);
     moreLabel();
     var my = ++seq;
-    if (!view.length) $('count').textContent = t('loading');
+    if (!view.length) $('count').textContent = $('gcount').textContent = t('loading');
     DS.search(q).then(function (r) {
       if (my !== seq) return;
       view = r.rows; total = r.total; marks = r.markers || [];
@@ -361,8 +374,9 @@
       renderMarkers();
     }, function (e) {
       if (my !== seq) return;
-      $('count').textContent = '';
-      $('list').innerHTML = '<li class="empty">' + esc(apiErrText(e)) + '</li>';
+      $('count').textContent = $('gcount').textContent = '';
+      $('list').innerHTML = $('grid').innerHTML = '<li class="empty">' + esc(apiErrText(e)) + '</li>';
+      $('gmore').hidden = true;
     });
   }
   function loadMore(btn) {
@@ -391,13 +405,30 @@
     $('list').innerHTML = html;
     var mb = $('more');
     if (mb) mb.onclick = function (e) { e.stopPropagation(); loadMore(mb); };
+    renderGrid();
+  }
+  // Full-width cards from the same results; a card is a link, so the browser's back button returns here
+  function renderGrid() {
+    $('gcount').textContent = t('count', { n: total.toLocaleString() });
+    $('grid').innerHTML = view.length ? view.map(function (p) {
+      var st = p.st, open = st && st.open && !p.cl;
+      var op = open ? (st.all ? t('open_short24') : t('open_short', { t: hm(st.until) })) : '';
+      return '<li><a class="card" href="#p=' + p.i + '">' + cardImg(p) + '<div class="cbody"><div class="nm">' + esc(p.n) +
+        (p.z ? '<span class="zh">' + esc(p.z) + '</span>' : '') + '</div>' + hlHtml(p, X.badge ? X.badge(full(p), lang) : '') +
+        '<div class="meta">' + metaHtml(p, op) + '</div>' + (p.cl ? '<div class="flag">' + esc(statusText(p)) + '</div>' : '') + '</div></a></li>';
+    }).join('') : '<li class="empty">' + t('empty') + '</li>';
+    var gm = $('gmore'), left = total - view.length;
+    gm.hidden = left <= 0;
+    gm.disabled = false;
+    if (left > 0) gm.textContent = t('more', { n: Math.min(60, left) });
   }
 
   // ---------- map ----------
+  function tiles(attr) {
+    return L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: attr });
+  }
   var map = L.map('map', { preferCanvas: true }).setView([43.0731, -89.4012], 13);
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, attribution: 'Tiles &copy; Esri &middot; Data: OpenStreetMap, PHMDC, Google, DoorDash, Uber Eats, Toast, EatStreet, Grubhub'
-  }).addTo(map);
+  tiles('Tiles &copy; Esri &middot; Data: OpenStreetMap, PHMDC, Google, DoorDash, Uber Eats, Toast, EatStreet, Grubhub').addTo(map);
   var layer = L.layerGroup().addTo(map), markers = {};
   var legend = L.control({ position: 'bottomleft' });
   legend.onAdd = function () { var d = L.DomUtil.create('div', 'legend'); d.id = 'legend'; return d; };
@@ -499,32 +530,34 @@
   function fold(title, body, note) {
     return '<details class="fold"><summary>' + esc(title) + (note ? '<small>' + esc(note) + '</small>' : '') + '</summary><div class="fold-body">' + body + '</div></details>';
   }
-  function renderDrawer(p, d) {
-    var h = ['<div class="close-wrap"><button class="close" id="dclose" aria-label="Close">×</button></div>'];
+  // Pieces of a place's detail, shared by the map's side panel and the full-width page
+  function detailParts(p, d) {
+    var o = {}, h = [];
     // The big photo is the top dish when there is one, captioned; the dish row then starts at the next one
     var dp = d.dp || [], hd = !!(d.hd && d.hero && dp.length), rest = hd ? dp.slice(1) : dp;
+    o.hero = '';
     if (d.hero) {
       var cap = hd ? '<figcaption><small>' + t('hero_dish') + '</small><b>' + esc(dp[0][0]) + (dp[0][1] ? ' ' + esc(dp[0][1]) : '') + '</b>' +
         (dishMeta(dp[0]) ? '<span>' + esc(dishMeta(dp[0])) + '</span>' : '') + '</figcaption>' : '';
-      h.push('<figure class="hero"><img src="' + esc(d.hero) + '" alt="" referrerpolicy="no-referrer">' + cap + '</figure>');
+      o.hero = '<figure class="hero"><img src="' + esc(d.hero) + '" alt="" referrerpolicy="no-referrer">' + cap + '</figure>';
     }
-    h.push('<div class="dbody">');
     var sub = [(p.c || []).map(cuisLabel).join(' / ') || kindLabel(p.k), p.pr ? '$'.repeat(p.pr) : ''].filter(Boolean).join(' · ');
     var st = statusText(p);
-    h.push('<div class="dhead"><div><h2>' + esc(p.n) + '</h2>' + (p.z ? '<div class="zh2">' + esc(p.z) + '</div>' : '') +
-      '<div class="dline">' + esc(sub) + '</div>' +
-      '<div class="dline">' + (p.a ? esc(p.a) + ' · ' : '') + '<a href="' + gmapsUrl(p, d) + '" target="_blank" rel="noopener">' + t('map_link') + '</a>' +
-      (p.dk != null ? ' · <span class="dist">' + distLabel(p.dk) + '</span>' : '') + '</div>' + (st ? '<div class="dline st">' + esc(st) + '</div>' : '') + '</div>' + scoreHtml(p.o, true) + '</div>');
+    o.addr = '<div class="dline">' + (p.a ? esc(p.a) + ' · ' : '') + '<a href="' + gmapsUrl(p, d) + '" target="_blank" rel="noopener">' + t('map_link') + '</a>' +
+      (p.dk != null ? ' · <span class="dist">' + distLabel(p.dk) + '</span>' : '') + '</div>';
+    // The page shows the address under its small map instead
+    o.head = function (withAddr) {
+      return '<div class="dhead"><div><h2>' + esc(p.n) + '</h2>' + (p.z ? '<div class="zh2">' + esc(p.z) + '</div>' : '') +
+        '<div class="dline">' + esc(sub) + '</div>' + (withAddr ? o.addr : '') + (st ? '<div class="dline st">' + esc(st) + '</div>' : '') + '</div>' + scoreHtml(p.o, true) + '</div>';
+    };
     // The verdict sits right under the name: warnings, the one-line verdict, then rank and what reviewers say
     var an = (d.an && d.an[lang]) || [], nk = d.an ? d.an.k : an.length, nw = d.an ? d.an.w || 0 : 0;
-    if (nk) {
-      h.push('<section class="verdict">' + an.slice(0, nw).map(function (x) { return '<p class="warn">' + esc(x) + '</p>'; }).join('') +
-        (nk > nw ? '<p class="lead">' + esc(an[nw]) + '</p>' : '') +
-        an.slice(nw + 1, nk).map(function (x) { return '<p>' + emph(x) + '</p>'; }).join('') + '</section>');
-    }
+    o.verdict = nk ? '<section class="verdict">' + an.slice(0, nw).map(function (x) { return '<p class="warn">' + esc(x) + '</p>'; }).join('') +
+      (nk > nw ? '<p class="lead">' + esc(an[nw]) + '</p>' : '') +
+      an.slice(nw + 1, nk).map(function (x) { return '<p>' + emph(x) + '</p>'; }).join('') + '</section>' : '';
     var tags = (p.tg || []).map(function (g) { return TG[g] ? TG[g][lang === 'zh' ? 0 : 1] : g; });
     if (p.ag === 'r' || p.ag === 'y') tags.push(t(p.ag === 'r' ? 'age_r' : 'age_y'));
-    if (tags.length) h.push('<div class="tags">' + tags.map(function (x) { return '<span class="tag">' + esc(x) + '</span>'; }).join('') + '</div>');
+    o.tags = tags.length ? '<div class="tags">' + tags.map(function (x) { return '<span class="tag">' + esc(x) + '</span>'; }).join('') + '</div>' : '';
     // Order
     var acts = (d.lk || []).map(function (l, k) {
       return '<a class="act' + (k === 0 && l[2] ? ' primary' : '') + (l[2] ? '' : ' off') + '" href="' + esc(l[1]) + '" target="_blank" rel="noopener">' +
@@ -532,27 +565,28 @@
     });
     if (d.ph) acts.push('<a class="act" href="tel:' + esc(d.ph.replace(/[^\d+]/g, '')) + '">' + t('call') + '</a>');
     if (d.w) acts.push('<a class="act" href="' + esc(d.w) + '" target="_blank" rel="noopener">' + t('site') + '</a>');
-    if (acts.length) h.push('<div class="actions">' + acts.join('') + '</div>');
-    if (d.host) h.push('<p class="dline">' + t('host') + esc(d.host) + '</p>');
+    o.actions = acts.length ? '<div class="actions">' + acts.join('') + '</div>' : '';
+    o.host = d.host ? '<p class="dline">' + t('host') + esc(d.host) + '</p>' : '';
     // Dishes with photos
+    o.dishes = '';
     if (rest.length) {
-      h.push('<section class="sec"><h3>' + t('dishes') + '</h3><div class="dishrow">' + rest.map(function (x) {
+      o.dishes = ('<section class="sec"><h3>' + t('dishes') + '</h3><div class="dishrow">' + rest.map(function (x) {
         var meta = dishMeta(x, true);
         return '<div class="dish">' + (x[3] ? '<img loading="lazy" referrerpolicy="no-referrer" alt="" src="' + esc(x[3]) + '">' : '<div class="noimg"></div>') +
           '<div class="dn">' + esc(x[0]) + '</div>' + (x[1] ? '<div class="dz">' + esc(x[1]) + '</div>' : '') + (meta ? '<div class="dm">' + esc(meta) + '</div>' : '') + '</div>';
       }).join('') + '</div><p class="src">' + t('dishes_note') + '</p></section>');
     } else if ((d.ds || []).length) {
-      h.push('<section class="sec"><h3>' + t('dishes') + '</h3><ul class="dishlist">' + d.ds.map(function (x) {
+      o.dishes = ('<section class="sec"><h3>' + t('dishes') + '</h3><ul class="dishlist">' + d.ds.map(function (x) {
         return '<li><span>' + esc(x[0]) + (x[1] ? ' ' + esc(x[1]) : '') + '</span><span>' + (x[2] ? '$' + Number(x[2]).toFixed(2) : '') + '</span></li>';
       }).join('') + '</ul></section>');
     }
     // Five scores: strong ones solid, weak ones faded
     var labels = ['taste', 'pop', 'value', 'hyg', 'conv'];
-    h.push('<div class="metrics">' + labels.map(function (k, j) {
+    o.metrics = '<div class="metrics">' + labels.map(function (k, j) {
       var v = p.s ? p.s[j] : null, lv = v == null ? '' : v >= 80 ? ' hi' : v < 50 ? ' lo' : '';
       return '<div class="metric' + lv + '"><b>' + (v == null ? '—' : v) + '</b><span>' + t(k) + '</span><i><u style="width:' + (v || 0) + '%"></u></i></div>';
-    }).join('') + '</div>');
-    if (X.drawer) h.push(X.drawer(full(p), d, lang) || '');
+    }).join('') + '</div>';
+    o.ext = X.drawer ? X.drawer(full(p), d, lang) || '' : '';
     // Folded details
     if ((d.rt || []).length) {
       h.push(fold(t('ratings'), '<table class="rtab">' + d.rt.map(function (r) {
@@ -588,11 +622,72 @@
     (d.rt || []).forEach(function (r) { if (srcs.indexOf(SRC[r[0]]) < 0) srcs.push(SRC[r[0]]); });
     h.push(fold(t('about'), '<div class="howbox"><p>' + esc(srcs.join(' · ')) + (d.lic ? '<br>' + t('lic') + esc(d.lic) : '') + '<br>' + t('built', { d: META.built || '' }) + '</p>' +
       t('how_body').map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + (DS.remote ? '<p>' + esc(t('served')) + '</p>' : '') + '</div>'));
-    h.push('</div>');
-    var dr = $('drawer');
-    dr.innerHTML = h.join('');
+    o.folds = h.join('');
+    return o;
+  }
+  function renderDrawer(p, d) {
+    var o = detailParts(p, d), dr = $('drawer');
+    dr.innerHTML = '<div class="close-wrap"><button class="close" id="dclose" aria-label="Close">×</button></div>' + o.hero +
+      '<div class="dbody">' + o.head(true) + o.verdict + o.tags + o.actions + o.host + o.dishes + o.metrics + o.ext + o.folds + '</div>';
     dr.scrollTop = 0;
     $('dclose').onclick = closeDrawer;
+  }
+
+  // ---------- full-width page (grid view): the place on the left, a small map and the ways to order on the right ----------
+  var gmap = null, gmark = null, pageId = null, pageNav = false, TITLE = document.title;
+  function pageBar() { return '<div class="gp-bar"><button class="back" id="gback" type="button">' + esc(t('back')) + '</button></div>'; }
+  function renderPage(p, d) {
+    var o = detailParts(p, d), g = $('gpage');
+    var loc = p.la != null ? '<div class="gp-map" id="gmap" role="img" aria-label="' + esc(t('map_of', { n: p.n })) + '"></div>' : '';
+    g.innerHTML = pageBar() + '<div class="gp"><div class="gp-main"><div class="gp-hero">' + o.hero + '</div>' +
+      '<div class="gp-head">' + o.head(false) + o.verdict + o.tags + '</div>' +
+      '<div class="gp-body">' + o.dishes + o.ext + o.folds + '</div></div>' +
+      '<aside class="gp-side">' + loc + o.addr + o.actions + o.host + o.metrics + '</aside></div>';
+    $('gback').onclick = leavePage;
+    if (loc) miniMap(p);
+  }
+  function miniMap(p) {
+    if (gmap) gmap.remove();
+    // Page scrolling stays page scrolling: no wheel zoom, and no dragging on touch screens
+    gmap = L.map('gmap', { scrollWheelZoom: false, dragging: !L.Browser.mobile }).setView([p.la, p.lo], 16);
+    tiles('Tiles &copy; Esri').addTo(gmap);
+    gmark = L.circleMarker([p.la, p.lo], markerStyle('s1', true)).addTo(gmap);
+  }
+  function openPage(i, nav) {
+    pageId = i;
+    pageNav = !!nav;
+    var g = $('gpage');
+    g.hidden = false;
+    g.scrollTop = 0;
+    document.body.classList.add('page-open');
+    g.innerHTML = pageBar() + '<div class="gp"><div class="gp-head"><h2>' + esc(names[i] ? names[i].n : '') + '</h2><p class="src">' + t('loading') + '</p></div></div>';
+    $('gback').onclick = leavePage;
+    DS.place(i, { ref: refPoint() }).then(function (r) {
+      if (pageId !== i) return;
+      if (!r) throw Object.assign(new Error('gone'), { status: 404 });
+      cur = r;
+      renderPage(r.p, r.d);
+      document.title = r.p.n + ' · ' + TITLE;
+    }).catch(function (e) {
+      if (pageId !== i) return;
+      g.innerHTML = pageBar() + '<div class="gp"><div class="gp-head"><p>' + esc(apiErrText(e)) + '</p></div></div>';
+      $('gback').onclick = leavePage;
+    });
+  }
+  function closePage() {
+    if (pageId == null) return;
+    pageId = null;
+    if (gmap) { gmap.remove(); gmap = gmark = null; }
+    $('gpage').hidden = true;
+    $('gpage').innerHTML = '';
+    document.body.classList.remove('page-open');
+    document.title = TITLE;
+  }
+  // Back undoes the card click; a page opened from a shared link just closes
+  function leavePage() {
+    if (pageNav) { history.back(); return; }
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* file url */ }
+    closePage();
   }
 
   // ---------- delivery apps ----------
@@ -662,6 +757,11 @@
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
     document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
     document.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.placeholder = t(el.getAttribute('data-i18n-ph')); });
+    // Full tab names, short ones on phones
+    document.querySelectorAll('[data-tab]').forEach(function (el) {
+      var k = 'tab_' + el.getAttribute('data-tab');
+      el.innerHTML = '<span class="tl">' + esc(t(k)) + '</span><span class="ts">' + esc(t(k + '_s')) + '</span>';
+    });
     $('lang').textContent = lang === 'zh' ? 'EN' : '中文';
     $('theme').setAttribute('aria-label', t('theme'));
     $('theme').title = t('theme');
@@ -675,6 +775,7 @@
     buildFilters(); i18n(); moreLabel();
     if (view.length || total) renderList();
     if (sel != null && cur && cur.p.i === sel) renderDrawer(cur.p, cur.d);
+    if (pageId != null && cur && cur.p.i === pageId) renderPage(cur.p, cur.d);
     drawPlat();
   };
   var qt;
@@ -695,13 +796,40 @@
     apply();
   });
   $('list').addEventListener('click', function (e) { var li = e.target.closest('.item'); if (li) openPlace(+li.getAttribute('data-i'), false); });
-  document.querySelectorAll('.tab').forEach(function (b) {
-    b.onclick = function () {
-      document.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('active', x === b); });
-      document.querySelectorAll('.view').forEach(function (v) { v.classList.toggle('active', v.id === 'view-' + b.getAttribute('data-view')); });
-      if (b.getAttribute('data-view') === 'plat') { if (PS) drawPlat(); else loadPlat(); }
-      else setTimeout(function () { map.invalidateSize(); }, 0);
-    };
+  $('gmore').onclick = function () { loadMore(this); };
+  // Views: the card grid, the map with its list, the delivery apps; one filter bar moves to whichever list is showing
+  var curView = 'grid';
+  function showView(name) {
+    curView = name;
+    document.querySelectorAll('.tab').forEach(function (x) {
+      var on = x.getAttribute('data-view') === name;
+      x.classList.toggle('active', on);
+      x.setAttribute('aria-selected', String(on));
+    });
+    document.querySelectorAll('.view').forEach(function (v) { v.classList.toggle('active', v.id === 'view-' + name); });
+    var f = document.querySelector('.filters');
+    if (name === 'grid' && f.parentNode !== $('ghead')) $('ghead').appendChild(f);
+    if (name === 'map' && f.parentNode !== $('rail')) $('rail').insertBefore(f, $('count'));
+    LS.set('view', name);
+    if (name === 'plat') { if (PS) drawPlat(); else loadPlat(); }
+    if (name === 'map') setTimeout(function () { map.invalidateSize(); }, 0);
+  }
+  document.querySelectorAll('.tab').forEach(function (b) { b.onclick = function () { showView(b.getAttribute('data-view')); }; });
+  // #p=<id>: a place page in the grid view (a card click pushes it, so Back returns to the grid), the side panel on the map
+  function openFromView(i) {
+    if (curView !== 'grid') showView('grid');
+    if (location.hash === '#p=' + i) openPage(i, false); else location.hash = 'p=' + i;
+  }
+  // The map's side panel leaves its place in the hash; a card for that place must still open
+  $('grid').addEventListener('click', function (e) {
+    var a = e.target.closest('a.card');
+    if (a && a.getAttribute('href') === location.hash) { e.preventDefault(); openPage(+a.getAttribute('href').slice(3), false); }
+  });
+  window.addEventListener('hashchange', function () {
+    var m = /#p=(\d+)/.exec(location.hash);
+    if (curView === 'map') { if (m) openPlace(+m[1], false); else if (sel != null) closeDrawer(); return; }
+    if (curView !== 'grid') showView('grid');
+    if (m) openPage(+m[1], true); else closePage();
   });
   $('plat-cards').addEventListener('click', function (e) {
     var b = e.target.closest('.pcard');
@@ -715,15 +843,14 @@
   $('plat-list').addEventListener('click', function (e) {
     if (e.target.closest('a')) return;
     var row = e.target.closest('.prow[data-i]');
-    if (!row) return;
-    document.querySelector('.tab[data-view="map"]').click();
-    openPlace(+row.getAttribute('data-i'), false);
+    if (row) openFromView(+row.getAttribute('data-i'));
   });
   $('switcher').onclick = function () { document.body.classList.toggle('show-map'); i18n(); setTimeout(function () { map.invalidateSize(); }, 0); };
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
     var pk = [cuisPick, platPick].filter(function (x) { return x.open(); })[0];
     if (pk) pk.hide(true);
+    else if (curView === 'grid' && pageId != null) leavePage();
     else if (sel != null) closeDrawer();
   });
   // Black on white or white on black; follows the system until the button is used
@@ -732,17 +859,23 @@
     document.documentElement.setAttribute('data-theme', next);
     LS.set('theme', next);
     renderLegend(); renderMarkers();
+    if (gmark) gmark.setStyle(markerStyle('s1', true));
   };
   if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { renderLegend(); renderMarkers(); });
 
   // Small API for local extensions
-  window.MEApp = { open: function (i) { document.querySelector('.tab[data-view="map"]').click(); openPlace(i, false); } };
+  window.MEApp = { open: openFromView };
 
   buildFilters();
   i18n();
+  var saved = LS.get('view', 'grid');
+  showView(['grid', 'map', 'plat'].indexOf(saved) >= 0 ? saved : 'grid');
   apply();
   var m = /#p=(\d+)/.exec(location.hash);
-  if (m) openPlace(+m[1], false);
+  if (m) {
+    if (curView === 'map') openPlace(+m[1], false);
+    else { showView('grid'); openPage(+m[1], false); }
+  }
   // Local extensions may load data later; refresh what they decorate
   if (X.load) X.load().then(function () { buildFilters(); apply(); drawPlat(); });
 })();

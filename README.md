@@ -4,18 +4,20 @@ Every place to eat in Madison and the rest of Dane County, WI on one map, scored
 
 **Open it: https://webgrs.github.io/madison-food-map/**
 
-![List and map](docs/list.png)
+![All places](docs/list.png)
 
 ## What you can do
 
-- Browse **2,292 places** on a map or a list: restaurants, fast food, cafés, bakeries and dessert shops, bars, food carts, grocery stores, UW-Madison campus dining, and 87 delivery-only brands. Places that look closed or replaced are hidden unless you search for them by name.
+- Browse **2,292 places** as photo cards across the whole screen, or on a map with a list beside it: restaurants, fast food, cafés, bakeries and dessert shops, bars, food carts, grocery stores, UW-Madison campus dining, and 87 delivery-only brands. Places that look closed or replaced are hidden unless you search for them by name.
 - Search in English or Chinese ("ramen", "dumpling", "拉面", "火锅"), filter by type, cuisine (tick as many as you like), delivery app, open now and occasion (late night, cheap eats, date, groups, quick bite, delivery, brunch), and sort by overall score, taste, popularity, value, hygiene, distance or number of ratings.
 - Every place in the list shows up to three highlights: its rank within its cuisine, very good taste, popularity, value, an award, or a caution such as a weak inspection record or reports that it closed.
-- Open a place to see photos of its most-ordered dishes and, right under the name, the verdict: warnings first, then one line on taste, popularity and value, its rank in its cuisine and what reviewers praise or complain about. Its five scores, where to order, ratings from each source, opening hours and Public Health inspection results follow.
+- Open a place for its own page: photos of its most-ordered dishes and, right under the name, the verdict (warnings first, then one line on taste, popularity and value, its rank in its cuisine and what reviewers praise or complain about); beside it, a small map of where it is, the address, where to order and its five scores. Ratings from each source, opening hours and Public Health inspection results are folded below.
 - A button in the header switches between black on white and white on black.
 - The **Delivery apps** tab compares DoorDash, Uber Eats, Grubhub, EatStreet and Toast: how many places each one carries, their average rating, and how many places only that app has. Below that, every orderable place is listed with its rating and number of ratings on each app, and each cell opens that store page. 1,160 places can be ordered on at least one app: DoorDash 859, Uber Eats 817, Grubhub 539, EatStreet 274, Toast 182. A price check compares the same menu items on DoorDash and Uber Eats: at 79% of the 438 places it could check, they cost exactly the same, so the difference between the apps is in the fees.
 
-![Place details](docs/detail.png)
+![Place page](docs/detail.png)
+
+![Map](docs/map.png)
 
 ![Delivery apps](docs/apps.png)
 
