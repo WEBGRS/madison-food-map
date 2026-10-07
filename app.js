@@ -54,6 +54,10 @@
       sort_dist: '离我最近', sort_count: '评分人数最多',
       from_home: '家', from_gps: '我的位置', from_campus: '校园 Library Mall', from_capitol: '州议会',
       count: '{n} 家', more: '再显示 {n} 家', empty: '没有符合条件的店，换个关键词或者放宽筛选试试。', show_map: '地图', show_list: '列表',
+      rnd_btn: '随机一家', rnd_title: '今天吃这家？', rnd_go: '就它了', rnd_again: '换一家', rnd_from: '从 {n} 家里挑',
+      rnd_none: '当前的搜索和筛选下没有店。', rnd_none_rg: '这个范围里没有店，放宽距离或评分再试。',
+      rg_btn: '范围', rg_dist: '距离', rg_score: '评分', rg_any: '不限', rg_mi: '{x} 英里内', rg_walk: '（步行约 {m} 分钟）',
+      rg_pts: '{a}–{b} 分', rg_from: '从 {p} 算', rg_lo: '最低分', rg_hi: '最高分',
       reset: '清除搜索和筛选', foot: '数据来自县卫生局执照与检查记录、OpenStreetMap、Google 地图、DoorDash、Uber Eats、Grubhub、EatStreet、Toast 和 r/madisonwi，更新于 {d}。分数是和麦迪逊其他店比的相对分，50 大约是中位数。',
       open_until: '营业中，{t} 关门', open_24: '24 小时营业', opens_at: '{d}{t} 开门', today: '今天 ', tomorrow: '明天 ',
       closed_today: '今天休息', perm_closed: '可能已永久关闭', temp_closed: '暂停营业', maybe_closed: '可能已关门或换店',
@@ -99,6 +103,10 @@
       sort_dist: 'Closest', sort_count: 'Most ratings',
       from_home: 'Home', from_gps: 'My location', from_campus: 'Campus (Library Mall)', from_capitol: 'Capitol',
       count: '{n} places', more: 'Show {n} more', empty: 'Nothing matches. Try another word or loosen the filters.', show_map: 'Map', show_list: 'List',
+      rnd_btn: 'Pick one for me', rnd_title: 'How about this one?', rnd_go: 'Open it', rnd_again: 'Try another', rnd_from: 'from {n} places',
+      rnd_none: 'Nothing matches the current search and filters.', rnd_none_rg: 'Nothing in this range; widen the distance or the score.',
+      rg_btn: 'Range', rg_dist: 'Distance', rg_score: 'Score', rg_any: 'Any', rg_mi: 'within {x} mi', rg_walk: ' (~{m} min walk)',
+      rg_pts: 'score {a}–{b}', rg_from: 'measured from {p}', rg_lo: 'Lowest score', rg_hi: 'Highest score',
       reset: 'Clear search and filters', foot: 'Data from county food licences and inspections, OpenStreetMap, Google Maps, DoorDash, Uber Eats, Grubhub, EatStreet, Toast and r/madisonwi, updated {d}. Scores are relative to other Madison places; 50 is about the median.',
       open_until: 'Open until {t}', open_24: 'Open 24 hours', opens_at: 'Opens {d}{t}', today: '', tomorrow: 'tomorrow ',
       closed_today: 'Closed today', perm_closed: 'May be permanently closed', temp_closed: 'Temporarily closed', maybe_closed: 'May have closed or changed',
@@ -221,7 +229,7 @@
       el.closest('.hero').remove();
     } else if (el.closest('.dish')) {
       el.replaceWith(Object.assign(document.createElement('div'), { className: 'noimg' }));
-    } else if (el.closest('.cimg')) {
+    } else if (el.closest('.cimg, .rnd-photo')) {
       el.replaceWith(Object.assign(document.createElement('span'), { className: 'ph', textContent: el.getAttribute('data-ini') || '' }));
     }
   }, true);
@@ -332,6 +340,71 @@
   }
   var cuisPick = cuisPicker('f-cuis', { counts: true, init: LS.get('cuis', '').split(','), onChange: function () { apply(); } });
   var platPick = cuisPicker('p-cuis', { onChange: function () { loadPlat(); } });
+
+  // Range: how far from the "distance from" point, which scores. One state, two sets of sliders (filter bar and random pick)
+  var MILES = [0.25, 0.5, 1, 2, 3, 5, 10, 0];  // last stop = any distance
+  var RG_ANY = { d: MILES.length - 1, lo: 0, hi: 100 };
+  function num(v, lo, hi, d) { v = +v; return isFinite(v) && v >= lo && v <= hi ? v : d; }
+  var RG = { d: num(LS.get('rgd'), 0, MILES.length - 1, RG_ANY.d), lo: num(LS.get('rglo'), 0, 95, 0), hi: num(LS.get('rghi'), 5, 100, 100) };
+  if (RG.lo >= RG.hi) RG.lo = 0;
+  function rgMiles() { return MILES[RG.d] || 0; }
+  function rgActive() { return rgMiles() > 0 || RG.lo > 0 || RG.hi < 100; }
+  function distText() {
+    var mi = rgMiles();
+    return mi ? t('rg_mi', { x: mi }) + (mi <= 1 ? t('rg_walk', { m: Math.round(mi * 1609 * 1.25 / 80) }) : '') : t('rg_any');
+  }
+  function syncRange() {
+    var any = RG.lo === 0 && RG.hi === 100, from = $('f-from').selectedOptions[0];
+    document.querySelectorAll('[data-rg]').forEach(function (el) {
+      var d = el.querySelector('.rg-d'), lo = el.querySelector('.rg-lo'), hi = el.querySelector('.rg-hi'), dual = el.querySelector('.dual');
+      d.value = RG.d; lo.value = RG.lo; hi.value = RG.hi;
+      d.style.setProperty('--p', String(RG.d / (MILES.length - 1) * 100));
+      dual.style.setProperty('--a', String(RG.lo));
+      dual.style.setProperty('--b', String(RG.hi));
+      // The low thumb goes on top near the right end, so the two can always be pulled apart
+      lo.style.zIndex = RG.lo > 50 ? 3 : 1;
+      d.setAttribute('aria-label', t('rg_dist'));
+      lo.setAttribute('aria-label', t('rg_lo'));
+      hi.setAttribute('aria-label', t('rg_hi'));
+      el.querySelector('.rg-dv').textContent = distText();
+      el.querySelector('.rg-sv').textContent = any ? t('rg_any') : t('rg_pts', { a: RG.lo, b: RG.hi });
+    });
+    document.querySelectorAll('.rg-from').forEach(function (el) { el.textContent = from ? t('rg_from', { p: from.textContent }) : ''; });
+    var parts = [];
+    if (rgMiles()) parts.push(t('rg_mi', { x: rgMiles() }));
+    if (!any) parts.push(t('rg_pts', { a: RG.lo, b: RG.hi }));
+    $('f-range').textContent = parts.length ? parts.join(' · ') : t('rg_btn');
+    $('f-range').classList.toggle('on', parts.length > 0);
+  }
+  var rgT = null, fitRing = false;
+  function rangeChanged(distMoved) {
+    LS.set('rgd', RG.d); LS.set('rglo', RG.lo); LS.set('rghi', RG.hi);
+    if (distMoved) fitRing = true;
+    syncRange();
+    // Dragging sends one request when it settles
+    clearTimeout(rgT);
+    rgT = setTimeout(function () { apply(); if ($('rnd').open) roll(); }, DS.remote ? 350 : 120);
+  }
+  document.querySelectorAll('[data-rg]').forEach(function (el) {
+    el.querySelector('.rg-d').addEventListener('input', function () { RG.d = +this.value; rangeChanged(true); });
+    el.querySelector('.rg-lo').addEventListener('input', function () { RG.lo = Math.min(+this.value, RG.hi - 5); rangeChanged(); });
+    el.querySelector('.rg-hi').addEventListener('input', function () { RG.hi = Math.max(+this.value, RG.lo + 5); rangeChanged(); });
+  });
+  function hideRange(focus) {
+    if ($('f-range-pop').hidden) return;
+    $('f-range-pop').hidden = true;
+    $('f-range').setAttribute('aria-expanded', 'false');
+    if (focus) $('f-range').focus();
+  }
+  $('f-range').onclick = function () {
+    var p = $('f-range-pop');
+    p.hidden = !p.hidden;
+    this.setAttribute('aria-expanded', String(!p.hidden));
+  };
+  $('f-range-pop').addEventListener('click', function (e) {
+    if (e.target.closest('[data-rg-clear]')) { RG = { d: RG_ANY.d, lo: 0, hi: 100 }; rangeChanged(true); }
+    if (e.target.closest('[data-rg-done]')) hideRange(true);
+  });
   function buildFilters() {
     var kinds = COUNTS.kinds, tcount = COUNTS.tags;
     cuisPick.redraw();
@@ -351,6 +424,7 @@
     fillSelect($('f-from'), fopts, LS.get('from', LOCAL.home ? 'home' : 'campus'));
     var ps = [['overall', t('ps_overall')], ['napps', t('ps_count')]].concat(PCODES.map(function (c) { return ['r' + c, t('ps_rating', { p: PLAT[c] })]; }));
     fillSelect($('p-sort'), ps, $('p-sort').value || 'overall');
+    syncRange();
   }
   // ---------- list (one page at a time from the data source) ----------
   var view = [], total = 0, marks = [], markById = {}, names = {}, sel = null, cur = null, seq = 0;
@@ -359,7 +433,8 @@
     return {
       text: $('q').value.trim(), kind: $('f-kind').value, cuis: cuisPick.get(), plat: $('f-plat').value, tag: $('f-tag').value,
       open: $('f-open').getAttribute('aria-pressed') === 'true', rated: $('f-rated').value, sort: $('f-sort').value,
-      ref: refPoint(), from: $('f-from').value, offset: offset || 0
+      ref: refPoint(), from: $('f-from').value, offset: offset || 0,
+      min: RG.lo, max: RG.hi, maxkm: rgMiles() * 1.609
     };
   }
   function moreLabel() {
@@ -389,6 +464,7 @@
       animFrom = 0;
       renderList();
       renderMarkers();
+      renderRing();
       // New results start at the top
       $('gwrap').scrollTop = 0;
       $('list').scrollTop = 0;
@@ -414,7 +490,7 @@
   }
   // Nothing found: say so, and offer to drop the search and filters when there are any
   function filtered() {
-    return !!($('q').value.trim() || cuisPick.get().length || $('f-open').getAttribute('aria-pressed') === 'true' ||
+    return !!($('q').value.trim() || cuisPick.get().length || rgActive() || $('f-open').getAttribute('aria-pressed') === 'true' ||
       ['f-kind', 'f-tag', 'f-plat', 'f-rated'].some(function (id) { return $(id).value; }));
   }
   function emptyHtml() {
@@ -423,6 +499,9 @@
   function resetFilters() {
     $('q').value = '';
     cuisPick.clear();
+    RG = { d: RG_ANY.d, lo: 0, hi: 100 };
+    LS.set('rgd', RG.d); LS.set('rglo', 0); LS.set('rghi', 100);
+    syncRange();
     $('f-open').setAttribute('aria-pressed', 'false');
     ['f-kind', 'f-tag', 'f-plat', 'f-rated'].forEach(function (id) { $(id).value = ''; });
     apply();
@@ -515,6 +594,14 @@
       m.addTo(layer);
       markers[i] = m;
     });
+  }
+  // The distance range as a dashed ring around the reference point; the map fits it after the slider moves
+  var ring = null;
+  function renderRing() {
+    if (ring) { map.removeLayer(ring); ring = null; }
+    if (!rgMiles()) return;
+    ring = L.circle(refPoint(), { radius: rgMiles() * 1609.34, color: dark() ? '#fff' : '#000', weight: 1.5, dashArray: '6 6', fill: false, interactive: false }).addTo(map);
+    if (fitRing && curView === 'map') { map.fitBounds(ring.getBounds(), { padding: [24, 24] }); fitRing = false; }
   }
   function restyle(i) {
     var m = markers[i], mk = markById[i];
@@ -837,12 +924,15 @@
   ['f-kind', 'f-plat', 'f-sort', 'f-rated', 'f-tag'].forEach(function (id) { $(id).addEventListener('change', apply); });
   document.addEventListener('click', function (e) {
     [cuisPick, platPick].forEach(function (pk) { if (pk.open() && !pk.owns(e.target)) pk.hide(false); });
+    if (!$('f-range').parentNode.contains(e.target)) hideRange(false);
   });
   $('f-open').onclick = function () { this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); apply(); };
   $('f-more').onclick = function () {
     var p = $('more-panel'); p.hidden = !p.hidden; this.setAttribute('aria-expanded', String(!p.hidden));
   };
   $('f-from').addEventListener('change', function () {
+    syncRange();
+    fitRing = true;
     if ($('f-from').value === 'gps' && !gps && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(function (pos) { gps = [pos.coords.latitude, pos.coords.longitude]; apply(); }, function () { apply(); });
       return;
@@ -867,7 +957,7 @@
     if (name === 'map' && f.parentNode !== $('rail')) $('rail').insertBefore(f, $('count'));
     LS.set('view', name);
     if (name === 'plat') { if (PS) drawPlat(); else loadPlat(); }
-    if (name === 'map') setTimeout(function () { map.invalidateSize(); }, 0);
+    if (name === 'map') setTimeout(function () { map.invalidateSize(); renderRing(); }, 0);
   }
   document.querySelectorAll('.tab').forEach(function (b) { b.onclick = function () { showView(b.getAttribute('data-view')); }; });
   // #p=<id>: a place page in the grid view (a card click pushes it, so Back returns to the grid), the side panel on the map
@@ -902,9 +992,10 @@
   });
   $('switcher').onclick = function () { document.body.classList.toggle('show-map'); i18n(); setTimeout(function () { map.invalidateSize(); }, 0); };
   document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape') return;
+    if (e.key !== 'Escape' || $('rnd').open) return;  // the dialog closes itself
     var pk = [cuisPick, platPick].filter(function (x) { return x.open(); })[0];
-    if (pk) pk.hide(true);
+    if (!$('f-range-pop').hidden) hideRange(true);
+    else if (pk) pk.hide(true);
     else if (curView === 'grid' && pageId != null) leavePage();
     else if (sel != null) closeDrawer();
   });
@@ -918,10 +1009,75 @@
     themeT = setTimeout(function () { root.classList.remove('theming'); }, 450);
     root.setAttribute('data-theme', next);
     LS.set('theme', next);
-    renderLegend(); renderMarkers();
+    renderLegend(); renderMarkers(); renderRing();
     if (gmark) gmark.setStyle(markerStyle('s1', true));
   };
   if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { renderLegend(); renderMarkers(); });
+
+  // ---------- pick one at random from what the filters show ----------
+  var DICE = '<svg class="rnd-dice" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+    '<circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"/></svg>';
+  var RND = { seq: 0, recent: [], cur: null };
+  function roll() {
+    var my = ++RND.seq, got = null, k = 0, steps = [55, 55, 60, 65, 75, 90, 110, 135, 165];
+    var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // One place from the server (one row of quota), never one of the last eight shown
+    var q = queryParams(0);
+    q.pick = true;
+    q.avoid = RND.recent.slice(-8);
+    RND.cur = null;
+    $('rnd-go').disabled = $('rnd-again').disabled = true;
+    $('rnd').classList.add('rolling');
+    $('rnd-photo').innerHTML = DICE;
+    $('rnd-sub').innerHTML = '';
+    DS.search(q).then(function (r) { got = r; }, function (e) { got = { error: e }; });
+    // Names from the list flick past, slowing down, until the answer is in
+    (function step() {
+      if (my !== RND.seq) return;
+      if (got && (still || k >= steps.length)) { land(got); return; }
+      var p = view.length ? view[Math.floor(Math.random() * view.length)] : null;
+      if (p && !still) $('rnd-name').textContent = p.n;
+      setTimeout(step, still ? 30 : steps[Math.min(k++, steps.length - 1)]);
+    })();
+  }
+  function land(r) {
+    var card = $('rnd-card'), p = r.rows && r.rows[0];
+    $('rnd').classList.remove('rolling');
+    $('rnd-again').disabled = false;
+    if (r.error || !p) {
+      $('rnd-name').textContent = r.error ? apiErrText(r.error) : t(rgActive() ? 'rnd_none_rg' : 'rnd_none');
+      $('rnd-from').textContent = '';
+      return;
+    }
+    RND.cur = p;
+    RND.recent.push(p.i);
+    seed(p);
+    var st = p.st, op = st && st.open && !p.cl ? (st.all ? t('open_short24') : t('open_short', { t: hm(st.until) })) : '';
+    $('rnd-photo').innerHTML = (p.im ? '<img decoding="async" referrerpolicy="no-referrer" alt="" data-ini="' + initial(p) + '" src="' + esc(bigImg(p.im)) + '">'
+      : '<span class="ph">' + initial(p) + '</span>') + scoreHtml(p.o);
+    $('rnd-name').innerHTML = esc(p.n) + (p.z ? '<span class="zh">' + esc(p.z) + '</span>' : '');
+    $('rnd-sub').innerHTML = hlHtml(p, '') + '<div class="meta">' + metaHtml(p, op) + '</div>' + (p.cl ? '<div class="flag">' + esc(statusText(p)) + '</div>' : '');
+    $('rnd-from').textContent = t('rnd_from', { n: r.total.toLocaleString() });
+    card.classList.remove('landed');
+    void card.offsetWidth;
+    card.classList.add('landed');
+    markLoaded(card);
+    $('rnd-go').disabled = false;
+    $('rnd-go').focus();
+  }
+  function goPicked() {
+    if (!RND.cur) return;
+    var i = RND.cur.i;
+    $('rnd').close();
+    if (curView === 'map') openPlace(i, false); else openFromView(i);
+  }
+  $('f-dice').onclick = function () { $('rnd').showModal(); roll(); };
+  $('rnd-again').onclick = roll;
+  $('rnd-go').onclick = goPicked;
+  $('rnd-card').onclick = goPicked;
+  $('rnd-x').onclick = function () { $('rnd').close(); };
+  $('rnd').addEventListener('click', function (e) { if (e.target === this) this.close(); });
+  $('rnd').addEventListener('close', function () { RND.seq++; });
 
   // Small API for local extensions
   window.MEApp = { open: openFromView };

@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="style.css?v=c17159d20c">
+<link rel="stylesheet" href="style.css?v=fe2c3f2fb0">
 </head>
 <body>
 <header class="top">
@@ -46,16 +46,31 @@
       <input id="q" class="search" type="search" autocomplete="off" data-i18n-ph="search_ph" placeholder="搜店名、菜系或菜名">
       <div class="frow">
         <div class="picker"><button class="pick-btn" id="f-cuis" type="button" aria-haspopup="true" aria-expanded="false"></button><div class="pick-pop" id="f-cuis-pop" hidden></div></div>
+        <div class="picker"><button class="pick-btn" id="f-range" type="button" aria-haspopup="true" aria-expanded="false"></button>
+          <div class="pick-pop rg-pop" id="f-range-pop" hidden>
+            <div class="rg" data-rg>
+              <div class="rg-row"><span data-i18n="rg_dist">距离</span><b class="rg-dv"></b></div>
+              <input type="range" class="rg-d" min="0" max="7" step="1">
+              <div class="rg-row"><span data-i18n="rg_score">评分</span><b class="rg-sv"></b></div>
+              <div class="dual"><i class="dual-fill"></i><input type="range" class="rg-lo" min="0" max="100" step="5"><input type="range" class="rg-hi" min="0" max="100" step="5"></div>
+            </div>
+            <div class="wide rg-origin"><span class="lbl" data-i18n="dist_from">距离从</span><select id="f-from" aria-label="Distance from"></select></div>
+            <div class="pick-foot rg-foot"><button type="button" class="linkish" data-rg-clear data-i18n="pick_clear">清空</button><button type="button" class="pick-done" data-rg-done data-i18n="pick_done">完成</button></div>
+          </div>
+        </div>
         <select id="f-sort" aria-label="Sort"></select>
         <button class="chip" id="f-open" type="button" aria-pressed="false" data-i18n="open_now">营业中</button>
         <button class="chip" id="f-more" type="button" aria-expanded="false" data-i18n="more_filters">更多筛选</button>
+        <button class="chip dice" id="f-dice" type="button" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.6" fill="currentColor"/></svg>
+          <span data-i18n="rnd_btn">随机一家</span>
+        </button>
       </div>
       <div class="more-panel" id="more-panel" hidden>
         <select id="f-kind" aria-label="Type"></select>
         <select id="f-tag" aria-label="Occasion"></select>
         <select id="f-plat" aria-label="Delivery app"></select>
         <select id="f-rated" aria-label="Ratings"></select>
-        <div class="wide"><span class="lbl" data-i18n="dist_from">距离从</span><select id="f-from" aria-label="Distance from"></select></div>
       </div>
     </div>
     <div class="count" id="count"></div>
@@ -83,10 +98,34 @@
   </div></div>
 </main>
 
+<dialog class="rnd" id="rnd" aria-labelledby="rnd-title">
+  <div class="rnd-in">
+    <div class="rnd-top"><b id="rnd-title" data-i18n="rnd_title">今天吃这家？</b><button class="rnd-x" id="rnd-x" type="button" aria-label="Close">×</button></div>
+    <div class="rnd-card" id="rnd-card">
+      <div class="rnd-photo" id="rnd-photo"></div>
+      <div class="rnd-name" id="rnd-name"></div>
+      <div class="rnd-sub" id="rnd-sub"></div>
+    </div>
+    <div class="rnd-act">
+      <button class="act primary" id="rnd-go" type="button" data-i18n="rnd_go">就它了</button>
+      <button class="act" id="rnd-again" type="button" data-i18n="rnd_again">换一家</button>
+    </div>
+    <div class="rnd-range">
+      <div class="rg" data-rg>
+        <div class="rg-row"><span data-i18n="rg_dist">距离</span><b class="rg-dv"></b></div>
+        <input type="range" class="rg-d" min="0" max="7" step="1">
+        <div class="rg-row"><span data-i18n="rg_score">评分</span><b class="rg-sv"></b></div>
+        <div class="dual"><i class="dual-fill"></i><input type="range" class="rg-lo" min="0" max="100" step="5"><input type="range" class="rg-hi" min="0" max="100" step="5"></div>
+      </div>
+      <div class="rnd-foot"><span class="rg-from"></span><span id="rnd-from"></span></div>
+    </div>
+  </div>
+</dialog>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="data/config.js?v=32ab0ec65c"></script>
 <script src="guard-client.js?v=9af92d3c84"></script>
-<script src="app.js?v=30689ff0bf"></script>
-<script src="feedback.js?v=ee27393752" data-site="eats" data-mount=".top-right" data-before="#theme" data-class="lang" data-compact="760" data-float-below="460" defer></script>
+<script src="app.js?v=79b7b43189"></script>
+<script src="feedback.js?v=f6ff8df4eb" data-site="eats" data-star="WEBGRS/madison-food-map" data-float-bottom-narrow="72" data-narrow-max="760" defer></script>
 </body>
 </html>
