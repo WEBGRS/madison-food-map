@@ -19,7 +19,7 @@
     meta: function () { return LIX ? Promise.resolve(E.metaOf(LIX)) : fetch(CFG.api.replace(/\/$/, '') + '/api/meta').then(function (r) { if (!r.ok) throw new Error('meta'); return r.json(); }); },
     search: function (q) { return LIX ? Promise.resolve(E.search(LIX, q, { ext: ext() })) : G.call('/api/search', { method: 'POST', body: q }); },
     place: function (id, q) { return LIX ? loadDetails().then(function () { return E.place(LIX, id, q); }) : G.call('/api/place', { method: 'POST', body: { id: id, q: q } }); },
-    peek: function (ids) { return LIX ? Promise.resolve({ rows: E.peek(LIX, ids) }) : G.call('/api/peek', { method: 'POST', body: { ids: ids } }); },
+    peek: function (ids, w) { return LIX ? Promise.resolve({ rows: E.peek(LIX, ids, w) }) : G.call('/api/peek', { method: 'POST', body: { ids: ids, w: w } }); },
     plat: function (q) { return LIX ? loadDetails().then(function () { return E.plat(LIX, q); }) : G.call('/api/plat', { method: 'POST', body: q }); }
   };
   if (G) G.session().catch(function () { /* retried on the first call */ });
@@ -50,6 +50,10 @@
       open_short: '营业至 {t}', open_short24: '24 小时营业',
       all_kinds: '所有类型', all_cuis: '所有菜系', any_plat: '不限外卖平台', no_plat: '不在任何外卖平台', on: '能在 {p} 下单',
       any_tag: '任何场合', all_rated: '有没有评分都显示', rated: '只看有评分的', confident: '只看评分人数多的',
+      wt_btn: '评分权重', wt_custom: '自定义权重', wt_title: '综合分怎么算', wt_reset: '恢复默认',
+      wt_note: '按你的比例重新计算综合分、排序和地图颜色；某项没有数据的店，按其余几项的比例算。',
+      wt_p_default: '默认', wt_p_taste: '只看口味', wt_p_value: '性价比优先', wt_p_hyg: '卫生优先', wt_p_pop: '人气优先', wt_p_conv: '外卖方便',
+      wt_using: '这里的综合分按你设的权重算：{x}（默认是口味 50%、人气 15%、性价比 15%、卫生 10%、方便 10%）。',
       sort_overall: '综合排序', sort_taste: '口味最好', sort_pop: '最有人气', sort_value: '最划算', sort_hyg: '卫生最好',
       sort_dist: '离我最近', sort_count: '外卖评分最多',
       from_home: '家', from_gps: '我的位置', from_campus: '校园 Library Mall', from_capitol: '州议会',
@@ -101,6 +105,10 @@
       open_short: 'open till {t}', open_short24: 'open 24h',
       all_kinds: 'All types', all_cuis: 'All cuisines', any_plat: 'Any delivery app', no_plat: 'Not on any app', on: 'Order on {p}',
       any_tag: 'Any occasion', all_rated: 'Rated or not', rated: 'Rated only', confident: 'Well-rated only',
+      wt_btn: 'Weights', wt_custom: 'My weights', wt_title: 'How the overall score is made', wt_reset: 'Back to default',
+      wt_note: 'Overall scores, sorting and map colours follow your mix; a place missing a part is scored on the rest in the same proportions.',
+      wt_p_default: 'Default', wt_p_taste: 'Taste only', wt_p_value: 'Value first', wt_p_hyg: 'Clean first', wt_p_pop: 'Popular first', wt_p_conv: 'Easy delivery',
+      wt_using: 'Overall scores here use your weights: {x} (default: taste 50%, popularity 15%, value 15%, hygiene 10%, convenience 10%).',
       sort_overall: 'Best overall', sort_taste: 'Best taste', sort_pop: 'Most popular', sort_value: 'Best value', sort_hyg: 'Cleanest',
       sort_dist: 'Closest', sort_count: 'Most app ratings',
       from_home: 'Home', from_gps: 'My location', from_campus: 'Campus (Library Mall)', from_capitol: 'Capitol',
@@ -469,6 +477,97 @@
     p.hidden = !p.hidden;
     this.setAttribute('aria-expanded', String(!p.hidden));
   };
+  // ---------- own weights for the overall score (taste, popularity, value, hygiene, convenience) ----------
+  var WT_DEFAULT = [50, 15, 15, 10, 10], WT_KEYS = ['taste', 'pop', 'value', 'hyg', 'conv'];
+  var WT_PRESETS = [['default', WT_DEFAULT], ['taste', [100, 0, 0, 0, 0]], ['value', [35, 10, 45, 5, 5]],
+    ['hyg', [40, 10, 10, 35, 5]], ['pop', [35, 45, 10, 5, 5]], ['conv', [40, 10, 10, 5, 35]]];
+  var W = (function () {
+    var v = null;
+    try { v = JSON.parse(LS.get('w', 'null')); } catch (e) { v = null; }
+    return Array.isArray(v) && v.length === 5 && v.every(function (x) { return typeof x === 'number' && x >= 0 && x <= 100; }) && v.some(function (x) { return x > 0; }) ? v : WT_DEFAULT.slice();
+  })();
+  function wCustom() { return W.some(function (x, k) { return x !== WT_DEFAULT[k]; }); }
+  // What requests send: nothing for the default mix, so the published score is used as is
+  function wParam() { return wCustom() ? W.slice() : undefined; }
+  // Same formula as the engine's weighted(): for the open place when the weights change
+  function wScore(p) {
+    if (!p.s || p.s[0] == null) return null;
+    var num = 0, den = 0;
+    for (var k = 0; k < 5; k++) if (p.s[k] != null && W[k] > 0) { num += p.s[k] * W[k]; den += W[k]; }
+    return den ? Math.round(num / den) : null;
+  }
+  function wPct() {
+    var sum = W.reduce(function (a, b) { return a + b; }, 0) || 1;
+    return W.map(function (x) { return Math.round(x / sum * 100); });
+  }
+  function wSummary() { var pc = wPct(); return WT_KEYS.map(function (k, j) { return t(k) + ' ' + pc[j] + '%'; }).join(lang === 'zh' ? '、' : ', '); }
+  function syncWeights() {
+    var pc = wPct();
+    $('wt').innerHTML = WT_KEYS.map(function (k, j) {
+      return '<div class="rg-item' + (W[j] !== WT_DEFAULT[j] ? ' on' : '') + '"><div class="rg-row"><span class="rg-n">' + esc(t(k)) + '</span><b class="rg-v">' + pc[j] + '%</b></div>' +
+        '<div class="one"><input type="range" min="0" max="100" step="5" value="' + W[j] + '" data-j="' + j + '" aria-label="' + esc(t(k)) + '" style="--p:' + W[j] + '"></div></div>';
+    }).join('');
+    $('wt-presets').innerHTML = WT_PRESETS.map(function (pr) {
+      var on = pr[1].every(function (x, k) { return x === W[k]; });
+      return '<button type="button" class="chip" data-wp="' + pr[0] + '" aria-pressed="' + on + '">' + esc(t('wt_p_' + pr[0])) + '</button>';
+    }).join('');
+    $('f-wt').textContent = wCustom() ? t('wt_custom') : t('wt_btn');
+    $('f-wt').classList.toggle('on', wCustom());
+  }
+  var wtT = null;
+  function weightsChanged(redrawPanel) {
+    LS.set('w', JSON.stringify(W));
+    if (redrawPanel) syncWeights();
+    else {
+      // While dragging, update the numbers without rebuilding the slider under the finger
+      var pc = wPct();
+      $('wt').querySelectorAll('.rg-item').forEach(function (it, j) {
+        it.querySelector('.rg-v').textContent = pc[j] + '%';
+        it.classList.toggle('on', W[j] !== WT_DEFAULT[j]);
+        it.querySelector('input').style.setProperty('--p', String(W[j]));
+      });
+      $('wt-presets').querySelectorAll('[data-wp]').forEach(function (b) {
+        var pr = WT_PRESETS.filter(function (x) { return x[0] === b.getAttribute('data-wp'); })[0][1];
+        b.setAttribute('aria-pressed', String(pr.every(function (x, k) { return x === W[k]; })));
+      });
+      $('f-wt').textContent = wCustom() ? t('wt_custom') : t('wt_btn');
+      $('f-wt').classList.toggle('on', wCustom());
+    }
+    // The open place gets its new score at once; lists and the map reload once the slider settles
+    if (cur && cur.p) {
+      cur.p.o = wScore(cur.p);
+      if (pageId === cur.p.i) renderPage(cur.p, cur.d);
+      if (sel === cur.p.i) renderDrawer(cur.p, cur.d);
+    }
+    clearTimeout(wtT);
+    wtT = setTimeout(function () { apply(); if (PS) loadPlat(); if ($('rnd').open) roll(); }, DS.remote ? 350 : 120);
+  }
+  $('wt').addEventListener('input', function (e) {
+    var j = e.target.getAttribute('data-j');
+    if (j == null) return;
+    var next = W.slice();
+    next[+j] = +e.target.value;
+    if (!next.some(function (x) { return x > 0; })) { e.target.value = W[+j]; return; }  // at least one part counts
+    W = next;
+    weightsChanged(false);
+  });
+  $('f-wt-pop').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-wp]');
+    if (b) { W = WT_PRESETS.filter(function (x) { return x[0] === b.getAttribute('data-wp'); })[0][1].slice(); weightsChanged(true); }
+    if (e.target.closest('[data-wt-reset]')) { W = WT_DEFAULT.slice(); weightsChanged(true); }
+    if (e.target.closest('[data-wt-done]')) hideWeights(true);
+  });
+  function hideWeights(focus) {
+    if ($('f-wt-pop').hidden) return;
+    $('f-wt-pop').hidden = true;
+    $('f-wt').setAttribute('aria-expanded', 'false');
+    if (focus) $('f-wt').focus();
+  }
+  $('f-wt').onclick = function () {
+    var p = $('f-wt-pop');
+    p.hidden = !p.hidden;
+    this.setAttribute('aria-expanded', String(!p.hidden));
+  };
   $('f-range-pop').addEventListener('click', function (e) {
     if (e.target.closest('[data-rg-clear]')) { RG = rgFull(); rangeChanged(true); }
     if (e.target.closest('[data-rg-done]')) hideRange(true);
@@ -493,6 +592,7 @@
     var ps = [['overall', t('ps_overall')], ['napps', t('ps_count')]].concat(PCODES.map(function (c) { return ['r' + c, t('ps_rating', { p: PLAT[c] })]; }));
     fillSelect($('p-sort'), ps, $('p-sort').value || 'overall');
     syncRange();
+    syncWeights();
   }
   // ---------- list (one page at a time from the data source) ----------
   var view = [], total = 0, marks = [], markById = {}, names = {}, sel = null, cur = null, seq = 0;
@@ -502,7 +602,7 @@
       text: $('q').value.trim(), kind: $('f-kind').value, cuis: cuisPick.get(), plat: $('f-plat').value, tag: $('f-tag').value,
       open: $('f-open').getAttribute('aria-pressed') === 'true', rated: $('f-rated').value, sort: $('f-sort').value,
       ref: refPoint(), from: $('f-from').value, offset: offset || 0,
-      maxkm: rgMiles() * 1.609, ranges: rgQuery()
+      maxkm: rgMiles() * 1.609, ranges: rgQuery(), w: wParam()
     };
   }
   function moreLabel() {
@@ -656,7 +756,7 @@
       m.on('mouseout', function () { if (sel !== i) m.setStyle(markerStyle(TIERS[mk[3]], false)); });
       m.on('mouseover', function () {
         if (names[i]) return;
-        DS.peek([i]).then(function (r) { r.rows.forEach(function (x) { names[x[0]] = { n: x[1], o: x[2] }; }); m.setTooltipContent(tipText(i)); }, function () { /* tooltip stays '…' */ });
+        DS.peek([i], wParam()).then(function (r) { r.rows.forEach(function (x) { names[x[0]] = { n: x[1], o: x[2] }; }); m.setTooltipContent(tipText(i)); }, function () { /* tooltip stays '…' */ });
       });
       m.on('click', function () { openPlace(i, true); });
       m.addTo(layer);
@@ -694,7 +794,7 @@
     dr.hidden = false;
     document.body.classList.add('drawer-open');
     dr.innerHTML = '<div class="dbody"><h2>' + esc(names[i] ? names[i].n : '') + '</h2><p class="src">' + t('loading') + '</p></div>';
-    DS.place(i, { ref: refPoint() }).then(function (r) {
+    DS.place(i, { ref: refPoint(), w: wParam() }).then(function (r) {
       if (sel !== i) return;
       if (!r) throw Object.assign(new Error('gone'), { status: 404 });
       cur = r;
@@ -844,7 +944,7 @@
     var srcs = (d.src || []).map(function (s) { return s === 'osm' ? t('src_osm') : s === 'uw' ? t('src_uw') : t('src_phmdc'); });
     (d.rt || []).forEach(function (r) { if (srcs.indexOf(SRC[r[0]]) < 0) srcs.push(SRC[r[0]]); });
     h.push(fold(t('about'), '<div class="howbox"><p>' + esc(srcs.join(' · ')) + (d.lic ? '<br>' + t('lic') + esc(d.lic) : '') + '<br>' + t('built', { d: META.built || '' }) + '</p>' +
-      t('how_body').map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + (DS.remote ? '<p>' + esc(t('served')) + '</p>' : '') + '</div>'));
+      (wCustom() ? '<p><b>' + esc(t('wt_using', { x: wSummary() })) + '</b></p>' : '') + t('how_body').map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + (DS.remote ? '<p>' + esc(t('served')) + '</p>' : '') + '</div>'));
     o.folds = h.join('');
     return o;
   }
@@ -892,7 +992,7 @@
       '<div class="gp-head"><h2>' + esc(names[i] ? names[i].n : '') + '</h2><i class="sk-line"></i><i class="sk-line short"></i></div></div>' +
       '<aside class="gp-side"><div class="gp-map sk-box"></div><i class="sk-line"></i></aside></div>';
     $('gback').onclick = leavePage;
-    DS.place(i, { ref: refPoint() }).then(function (r) {
+    DS.place(i, { ref: refPoint(), w: wParam() }).then(function (r) {
       if (pageId !== i) return;
       if (!r) throw Object.assign(new Error('gone'), { status: 404 });
       cur = r;
@@ -923,7 +1023,7 @@
   // ---------- delivery apps ----------
   // PS: the last answer (cards and price check come with the first page; rows grow with "more")
   var pfilter = '', PS = null, pseq = 0;
-  function platQuery(offset) { return { pf: pfilter, text: $('pq').value.trim(), cuis: platPick.get(), sort: $('p-sort').value, offset: offset || 0 }; }
+  function platQuery(offset) { return { pf: pfilter, text: $('pq').value.trim(), cuis: platPick.get(), sort: $('p-sort').value, offset: offset || 0, w: wParam() }; }
   function loadPlat() {
     var my = ++pseq;
     if (!PS) $('plat-list').innerHTML = '<p class="plat-note">' + t('loading') + '</p>';
@@ -1014,8 +1114,11 @@
   $('q').addEventListener('input', function () { clearTimeout(qt); qt = setTimeout(apply, DS.remote ? 250 : 160); });
   ['f-kind', 'f-plat', 'f-sort', 'f-rated', 'f-tag'].forEach(function (id) { $(id).addEventListener('change', apply); });
   document.addEventListener('click', function (e) {
+    // A control that redrew itself on this click (a weights preset) is gone from the page: not a click outside
+    if (!e.target.isConnected) return;
     [cuisPick, platPick].forEach(function (pk) { if (pk.open() && !pk.owns(e.target)) pk.hide(false); });
     if (!$('f-range').parentNode.contains(e.target)) hideRange(false);
+    if (!$('f-wt').parentNode.contains(e.target)) hideWeights(false);
   });
   $('f-open').onclick = function () { this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); apply(); };
   $('f-more').onclick = function () {
@@ -1086,6 +1189,7 @@
     if (e.key !== 'Escape' || $('rnd').open) return;  // the dialog closes itself
     var pk = [cuisPick, platPick].filter(function (x) { return x.open(); })[0];
     if (!$('f-range-pop').hidden) hideRange(true);
+    else if (!$('f-wt-pop').hidden) hideWeights(true);
     else if (pk) pk.hide(true);
     else if (curView === 'grid' && pageId != null) leavePage();
     else if (sel != null) closeDrawer();

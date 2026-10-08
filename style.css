@@ -293,6 +293,11 @@ html[lang|="zh"] .plat-price p { max-width: none; }
 .rg-origin select { flex: 1; min-width: 0; }
 .rg-foot { justify-content: space-between; align-items: center; }
 .rg-item { min-width: 0; }
+/* Own weights: presets, then one slider per part with its share */
+.wt-pop { width: min(520px, calc(100vw - 32px)); }
+.wt-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.wt-presets .chip { font-size: 13px; padding: 5px 11px; }
+.wt-pop .src { margin: 6px 0 0; }
 .rg-item.on .rg-n { font-weight: 700; }
 .rg-note { grid-column: 1 / -1; margin: 2px 0 0; }
 .rg-pop { width: min(600px, calc(100vw - 32px)); max-height: min(80vh, 660px); overflow-y: auto; }

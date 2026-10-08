@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="style.css?v=4864b5a34a">
+<link rel="stylesheet" href="style.css?v=9a478bfbe4">
 </head>
 <body>
 <header class="top">
@@ -54,6 +54,15 @@
           </div>
         </div>
         <select id="f-sort" aria-label="Sort"></select>
+        <div class="picker"><button class="pick-btn" id="f-wt" type="button" aria-haspopup="true" aria-expanded="false"></button>
+          <div class="pick-pop wt-pop" id="f-wt-pop" hidden>
+            <div class="pick-head"><b data-i18n="wt_title">综合分怎么算</b></div>
+            <div class="wt-presets" id="wt-presets"></div>
+            <div class="rg wt" id="wt"></div>
+            <p class="src" data-i18n="wt_note">按你的比例重新计算综合分、排序和地图颜色；某项没有数据的店，按其余几项的比例算。</p>
+            <div class="pick-foot rg-foot"><button type="button" class="linkish" data-wt-reset data-i18n="wt_reset">恢复默认</button><button type="button" class="pick-done" data-wt-done data-i18n="pick_done">完成</button></div>
+          </div>
+        </div>
         <button class="chip" id="f-open" type="button" aria-pressed="false" data-i18n="open_now">营业中</button>
         <button class="chip" id="f-more" type="button" aria-expanded="false" data-i18n="more_filters">更多筛选</button>
         <button class="chip dice" id="f-dice" type="button" aria-haspopup="dialog">
@@ -115,7 +124,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="data/config.js?v=32ab0ec65c"></script>
 <script src="guard-client.js?v=9af92d3c84"></script>
-<script src="app.js?v=079bf7b630"></script>
+<script src="app.js?v=06355a1d7c"></script>
 <script src="feedback.js?v=f6ff8df4eb" data-site="eats" data-star="WEBGRS/madison-food-map" data-float-bottom-narrow="72" data-narrow-max="760" defer></script>
 </body>
 </html>
