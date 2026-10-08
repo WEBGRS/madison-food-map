@@ -44,7 +44,7 @@
   var T = {
     zh: {
       tab_grid: '全部餐馆', tab_grid_s: '全部', tab_map: '地图', tab_map_s: '地图', tab_plat: '外卖平台', tab_plat_s: '外卖',
-      back: '← 全部餐馆', map_of: '{n} 的位置', search_ph: '搜店名、菜系或菜名', search_ph2: '搜店名',
+      back: '全部餐馆', map_of: '{n} 的位置', search_ph: '搜店名、菜系或菜名', search_ph2: '搜店名',
       open_now: '营业中', more_filters: '更多筛选', dist_from: '距离从', theme: '切换黑白',
       pick_title: '选菜系，可以多选', pick_clear: '清空', pick_done: '完成', cuis_n: '{a}等 {n} 种',
       open_short: '营业至 {t}', open_short24: '24 小时营业',
@@ -73,7 +73,7 @@
       insp_link: '去县卫生局网站看完整报告', reddit_n: '{s} 赞', n_ratings: '{n} 条',
       src_osm: 'OpenStreetMap', src_phmdc: '县卫生局营业执照', src_uw: '威大餐饮', lic: '执照名称：', built: '数据更新于 {d}',
       host: '实际出餐：', age_r: '21 岁以上才能进', age_y: '晚上可能查 ID',
-      how: '评分标准', how_body: [
+      how_body: [
         '口味（占综合分 50%）：Google、DoorDash、Uber Eats、Toast、EatStreet、Grubhub 的星级先换算成「在该平台麦迪逊所有店里的百分位」（各平台打分松紧不同），评分人数越少越往 50 拉，只有一个平台有分的再多拉一点；按平台之间的一致程度加权平均；再用外卖评论里夸或骂口味的比例（±6）、Reddit 上的评价倾向（±4）和获奖（最多 +10）微调。',
         '人气 15%：各平台评分人数、Reddit 提及次数、获奖。',
         '性价比 15%：口味 55% + 便宜程度 45%，便宜程度用热销主菜价格和同菜系的店比较。',
@@ -81,7 +81,7 @@
         '方便 10%：能下单的外卖平台数、是否开到晚上 10 点、是否每天营业。',
         '缺项按剩下的权重重新分配。分数是和麦迪逊其他店比的相对分，50 大约是中位数。'
       ],
-      p_count: '家能在这里下单', p_avg: '平均 ★{r}', p_excl: '{n} 家只在这里', p_title_sort: '排序',
+      p_count: '家能在这里下单', p_avg: '平均 ★{r}', p_excl: '{n} 家只在这里',
       ps_overall: '按综合分', ps_count: '按能下单的平台数', ps_rating: '按 {p} 评分',
       plat_note: '格子里是该平台上的评分和评分人数，点一下直接去下单页。饭团、熊猫外卖只有 App，网页查不到；数据更新于 {d}。',
       px_head_same: '同一道菜，DoorDash 和 Uber Eats 大多同价', px_head_diff: '同一道菜，DoorDash 和 Uber Eats 常常不同价',
@@ -95,7 +95,7 @@
     },
     en: {
       tab_grid: 'All places', tab_grid_s: 'All', tab_map: 'Map', tab_map_s: 'Map', tab_plat: 'Delivery apps', tab_plat_s: 'Delivery',
-      back: '← All places', map_of: 'Where {n} is', search_ph: 'Name, cuisine or dish', search_ph2: 'Search by name',
+      back: 'All places', map_of: 'Where {n} is', search_ph: 'Name, cuisine or dish', search_ph2: 'Search by name',
       open_now: 'Open now', more_filters: 'More filters', dist_from: 'Distance from', theme: 'Switch black and white',
       pick_title: 'Cuisines: pick any', pick_clear: 'Clear', pick_done: 'Done', cuis_n: '{a} +{m}',
       open_short: 'open till {t}', open_short24: 'open 24h',
@@ -124,7 +124,7 @@
       insp_link: 'Full reports on the county site', reddit_n: '{s} upvotes', n_ratings: '{n}',
       src_osm: 'OpenStreetMap', src_phmdc: 'county food licence', src_uw: 'UW dining', lic: 'Licence name: ', built: 'Data from {d}',
       host: 'Cooked by: ', age_r: '21+ only', age_y: 'May check ID at night',
-      how: 'How scores work', how_body: [
+      how_body: [
         'Taste (50% of overall): star ratings from Google, DoorDash, Uber Eats, Toast, EatStreet and Grubhub become percentiles among Madison places on the same app, since the apps grade differently. Few ratings pull toward 50, a single source pulls further, and sources are weighted by how well they agree. Taste words in delivery reviews (±6), the tone of r/madisonwi (±4) and awards (up to +10) adjust it.',
         'Popularity 15%: number of ratings, Reddit mentions, awards.',
         'Value 15%: 55% taste plus 45% cheapness, comparing the typical main dish with places of the same cuisine.',
@@ -132,7 +132,7 @@
         'Convenience 10%: delivery apps, open past 10 pm, open 7 days.',
         'Missing parts are left out and the rest rescaled. Scores are relative to other Madison places; 50 is about the median.'
       ],
-      p_count: 'places you can order from', p_avg: 'avg ★{r}', p_excl: '{n} only here', p_title_sort: 'Sort',
+      p_count: 'places you can order from', p_avg: 'avg ★{r}', p_excl: '{n} only here',
       ps_overall: 'Best overall', ps_count: 'Most apps', ps_rating: '{p} rating',
       plat_note: 'Each cell shows that app’s rating and number of ratings; tap to order. Fantuan and HungryPanda are app-only and are not covered. Data from {d}.',
       px_head_same: 'Most places charge the same menu prices on DoorDash and Uber Eats', px_head_diff: 'Menu prices often differ between DoorDash and Uber Eats',
@@ -719,6 +719,13 @@
     if (d.gp) return 'https://www.google.com/maps/place/?q=place_id:' + d.gp;
     return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.n + ' ' + (p.a || '') + ' ' + (p.t || 'Madison') + ' WI');
   }
+  // [main, second] name of a dish: the Chinese page leads with the Chinese name and keeps the English under it;
+  // the English page shows English and only a Chinese name the store itself gives. zi = index of the translated name
+  function dishName(x, zi) {
+    var zh = x[zi] || x[1] || '';
+    if (lang === 'zh' && zh) return [zh, zh === x[0] ? '' : x[0]];
+    return [x[0], x[1] || ''];
+  }
   function dishMeta(x, short) {
     var m = /(\d+)%\s*\((\d+)\)/.exec(x[4] || '');
     var liked = m ? t(short ? 'liked_s' : 'liked', { p: m[1], n: m[2] }) : x[4] || '';
@@ -727,6 +734,11 @@
   function fold(title, body, note) {
     return '<details class="fold"><summary>' + esc(title) + (note ? '<small>' + esc(note) + '</small>' : '') + '</summary><div class="fold-body">' + body + '</div></details>';
   }
+  var ICON = {
+    back: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    phone: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6.6 3.5h3l1.5 4-2 1.3a11 11 0 0 0 6.1 6.1l1.3-2 4 1.5v3a2 2 0 0 1-2.2 2A17 17 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+    web: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 12h17M12 3.5c2.4 2.4 3.5 5.3 3.5 8.5s-1.1 6.1-3.5 8.5c-2.4-2.4-3.5-5.3-3.5-8.5s1.1-6.1 3.5-8.5z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>'
+  };
   // Pieces of a place's detail, shared by the map's side panel and the full-width page
   function detailParts(p, d) {
     var o = {}, h = [];
@@ -734,7 +746,8 @@
     var dp = d.dp || [], hd = !!(d.hd && d.hero && dp.length), rest = hd ? dp.slice(1) : dp;
     o.hero = '';
     if (d.hero) {
-      var cap = hd ? '<figcaption><small>' + t('hero_dish') + '</small><b>' + esc(dp[0][0]) + (dp[0][1] ? ' ' + esc(dp[0][1]) : '') + '</b>' +
+      var hn = hd ? dishName(dp[0], 5) : null;
+      var cap = hd ? '<figcaption><small>' + t('hero_dish') + '</small><b>' + esc(hn[0]) + '</b>' + (hn[1] ? '<em>' + esc(hn[1]) + '</em>' : '') +
         (dishMeta(dp[0]) ? '<span>' + esc(dishMeta(dp[0])) + '</span>' : '') + '</figcaption>' : '';
       o.hero = '<figure class="hero"><img src="' + esc(d.hero) + '" alt="" referrerpolicy="no-referrer">' + cap + '</figure>';
     }
@@ -757,26 +770,31 @@
     var tags = (p.tg || []).map(function (g) { return TG[g] ? TG[g][lang === 'zh' ? 0 : 1] : g; });
     if (p.ag === 'r' || p.ag === 'y') tags.push(t(p.ag === 'r' ? 'age_r' : 'age_y'));
     o.tags = tags.length ? '<div class="tags">' + tags.map(function (x) { return '<span class="tag">' + esc(x) + '</span>'; }).join('') + '</div>' : '';
-    // Order
-    var acts = (d.lk || []).map(function (l, k) {
-      return '<a class="act' + (k === 0 && l[2] ? ' primary' : '') + (l[2] ? '' : ' off') + '" href="' + esc(l[1]) + '" target="_blank" rel="noopener">' +
+    // Order: the apps in an even grid (the first open one full width), then phone and website on their own row
+    var first = (d.lk || []).findIndex(function (l) { return l[2]; });
+    var apps = (d.lk || []).map(function (l, k) {
+      return '<a class="act' + (k === first ? ' primary' : '') + (l[2] ? '' : ' off') + '" href="' + esc(l[1]) + '" target="_blank" rel="noopener">' +
         esc(SRC[l[0]]) + (l[2] ? '' : ' · ' + t('paused')) + '</a>';
     });
-    if (d.ph) acts.push('<a class="act" href="tel:' + esc(d.ph.replace(/[^\d+]/g, '')) + '">' + t('call') + '</a>');
-    if (d.w) acts.push('<a class="act" href="' + esc(d.w) + '" target="_blank" rel="noopener">' + t('site') + '</a>');
-    o.actions = acts.length ? '<div class="actions">' + acts.join('') + '</div>' : '';
+    var contact = [];
+    if (d.ph) contact.push('<a class="act" href="tel:' + esc(d.ph.replace(/[^\d+]/g, '')) + '">' + ICON.phone + t('call') + '</a>');
+    if (d.w) contact.push('<a class="act" href="' + esc(d.w) + '" target="_blank" rel="noopener">' + ICON.web + t('site') + '</a>');
+    o.actions = (apps.length ? '<div class="actions acts-order">' + apps.join('') + '</div>' : '') +
+      (contact.length ? '<div class="actions acts-contact">' + contact.join('') + '</div>' : '');
     o.host = d.host ? '<p class="dline">' + t('host') + esc(d.host) + '</p>' : '';
     // Dishes with photos
     o.dishes = '';
     if (rest.length) {
-      o.dishes = ('<section class="sec"><h3>' + t('dishes') + '</h3><div class="dishrow">' + rest.map(function (x) {
+      o.dishes = ('<section class="sec"><h3>' + t('dishes') + '</h3><div class="dishrow" tabindex="0" aria-label="' + esc(t('dishes')) + '">' + rest.map(function (x) {
         var meta = dishMeta(x, true);
         return '<div class="dish">' + (x[3] ? '<img loading="lazy" referrerpolicy="no-referrer" alt="" src="' + esc(x[3]) + '">' : '<div class="noimg"></div>') +
-          '<div class="dn">' + esc(x[0]) + '</div>' + (x[1] ? '<div class="dz">' + esc(x[1]) + '</div>' : '') + (meta ? '<div class="dm">' + esc(meta) + '</div>' : '') + '</div>';
+          (function (nm) { return '<div class="dn">' + esc(nm[0]) + '</div>' + (nm[1] ? '<div class="dz">' + esc(nm[1]) + '</div>' : ''); })(dishName(x, 5)) +
+          (meta ? '<div class="dm">' + esc(meta) + '</div>' : '') + '</div>';
       }).join('') + '</div><p class="src">' + t('dishes_note') + '</p></section>');
     } else if ((d.ds || []).length) {
       o.dishes = ('<section class="sec"><h3>' + t('dishes') + '</h3><ul class="dishlist">' + d.ds.map(function (x) {
-        return '<li><span>' + esc(x[0]) + (x[1] ? ' ' + esc(x[1]) : '') + '</span><span>' + (x[2] ? '$' + Number(x[2]).toFixed(2) : '') + '</span></li>';
+        var nm = dishName(x, 3);
+        return '<li><span>' + esc(nm[0]) + (nm[1] ? '<small>' + esc(nm[1]) + '</small>' : '') + '</span><span>' + (x[2] ? '$' + Number(x[2]).toFixed(2) : '') + '</span></li>';
       }).join('') + '</ul></section>');
     }
     // Five scores: strong ones solid, weak ones faded
@@ -835,10 +853,12 @@
 
   // ---------- full-width page (grid view): the place on the left, a small map and the ways to order on the right ----------
   var gmap = null, gmark = null, pageId = null, pageNav = false, TITLE = document.title;
-  function pageBar() { return '<div class="gp-bar"><button class="back" id="gback" type="button">' + esc(t('back')) + '</button></div>'; }
+  function pageBar() {
+    return '<div class="gp-bar"><div class="gp-bar-in"><button class="back" id="gback" type="button">' + ICON.back + '<span>' + esc(t('back')) + '</span></button></div></div>';
+  }
   function renderPage(p, d) {
     var o = detailParts(p, d), g = $('gpage');
-    var loc = p.la != null ? '<div class="gp-map" id="gmap" role="img" aria-label="' + esc(t('map_of', { n: p.n })) + '"></div>' : '';
+    var loc = p.la != null ? '<div class="gp-map" id="gmap" role="group" aria-label="' + esc(t('map_of', { n: p.n })) + '"></div>' : '';
     g.innerHTML = pageBar() + '<div class="gp"><div class="gp-main"><div class="gp-hero">' + o.hero + '</div>' +
       '<div class="gp-head">' + o.head(false) + o.verdict + o.tags + '</div>' +
       '<div class="gp-body">' + o.dishes + o.ext + o.folds + '</div></div>' +
