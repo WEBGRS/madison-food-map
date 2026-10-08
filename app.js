@@ -56,8 +56,10 @@
       count: '{n} 家', more: '再显示 {n} 家', empty: '没有符合条件的店，换个关键词或者放宽筛选试试。', show_map: '地图', show_list: '列表',
       rnd_btn: '随机一家', rnd_title: '今天吃这家？', rnd_go: '就它了', rnd_again: '换一家', rnd_from: '从 {n} 家里挑',
       rnd_none: '当前的搜索和筛选下没有店。', rnd_none_rg: '这个范围里没有店，放宽距离或评分再试。',
-      rg_btn: '范围', rg_dist: '距离', rg_score: '评分', rg_any: '不限', rg_mi: '{x} 英里内', rg_walk: '（步行约 {m} 分钟）',
-      rg_pts: '{a}–{b} 分', rg_from: '从 {p} 算', rg_lo: '最低分', rg_hi: '最高分',
+      spend: '人均约 ${x}（{n} 位 Google 用户填写）', price_menu: '（按菜价估）',
+      rg_btn: '范围', rg_dist: '距离', rg_price: '价格', rg_count: '评分人数', rg_overall: '综合评分', rg_any: '不限',
+      rg_mi: '{x} 英里内', rg_walk: '（步行约 {m} 分钟）', rg_pts: '{a}–{b} 分', rg_n: '{a}–{b} 条', rg_n_min: '{a} 条以上', rg_n_max: '最多 {b} 条',
+      rg_from: '从 {p} 算', rg_lo: '下限', rg_hi: '上限', rg_sum: '范围：{x}', rg_note: '某一项设了范围后，缺这一项数据的店不显示（比如价格未知的店）。',
       reset: '清除搜索和筛选', foot: '数据来自县卫生局执照与检查记录、OpenStreetMap、Google 地图、DoorDash、Uber Eats、Grubhub、EatStreet、Toast 和 r/madisonwi，更新于 {d}。分数是和麦迪逊其他店比的相对分，50 大约是中位数。',
       open_until: '营业中，{t} 关门', open_24: '24 小时营业', opens_at: '{d}{t} 开门', today: '今天 ', tomorrow: '明天 ',
       closed_today: '今天休息', perm_closed: '可能已永久关闭', temp_closed: '暂停营业', maybe_closed: '可能已关门或换店',
@@ -105,8 +107,10 @@
       count: '{n} places', more: 'Show {n} more', empty: 'Nothing matches. Try another word or loosen the filters.', show_map: 'Map', show_list: 'List',
       rnd_btn: 'Pick one for me', rnd_title: 'How about this one?', rnd_go: 'Open it', rnd_again: 'Try another', rnd_from: 'from {n} places',
       rnd_none: 'Nothing matches the current search and filters.', rnd_none_rg: 'Nothing in this range; widen the distance or the score.',
-      rg_btn: 'Range', rg_dist: 'Distance', rg_score: 'Score', rg_any: 'Any', rg_mi: 'within {x} mi', rg_walk: ' (~{m} min walk)',
-      rg_pts: 'score {a}–{b}', rg_from: 'measured from {p}', rg_lo: 'Lowest score', rg_hi: 'Highest score',
+      spend: 'about ${x} per person ({n} Google diners)', price_menu: '(estimated from menu prices)',
+      rg_btn: 'Range', rg_dist: 'Distance', rg_price: 'Price', rg_count: 'Ratings', rg_overall: 'Overall', rg_any: 'Any',
+      rg_mi: 'within {x} mi', rg_walk: ' (~{m} min walk)', rg_pts: '{a}–{b}', rg_n: '{a}–{b} ratings', rg_n_min: '{a}+ ratings', rg_n_max: 'up to {b} ratings',
+      rg_from: 'measured from {p}', rg_lo: 'low end', rg_hi: 'high end', rg_sum: 'Range: {x}', rg_note: 'Once a range is set, places with no data for it are left out (unknown price, for one).',
       reset: 'Clear search and filters', foot: 'Data from county food licences and inspections, OpenStreetMap, Google Maps, DoorDash, Uber Eats, Grubhub, EatStreet, Toast and r/madisonwi, updated {d}. Scores are relative to other Madison places; 50 is about the median.',
       open_until: 'Open until {t}', open_24: 'Open 24 hours', opens_at: 'Opens {d}{t}', today: '', tomorrow: 'tomorrow ',
       closed_today: 'Closed today', perm_closed: 'May be permanently closed', temp_closed: 'Temporarily closed', maybe_closed: 'May have closed or changed',
@@ -143,7 +147,8 @@
   };
   function t(k, vars) {
     var s = (T[lang] && k in T[lang]) ? T[lang][k] : (k in T.en ? T.en[k] : k);
-    if (vars && typeof s === 'string') Object.keys(vars).forEach(function (v) { s = s.replace('{' + v + '}', vars[v]); });
+    // A function, not a string: in a replacement string "$$" would collapse to "$"
+    if (vars && typeof s === 'string') Object.keys(vars).forEach(function (v) { s = s.replace('{' + v + '}', function () { return vars[v]; }); });
     return s;
   }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -341,44 +346,95 @@
   var cuisPick = cuisPicker('f-cuis', { counts: true, init: LS.get('cuis', '').split(','), onChange: function () { apply(); } });
   var platPick = cuisPicker('p-cuis', { onChange: function () { loadPlat(); } });
 
-  // Range: how far from the "distance from" point, which scores. One state, two sets of sliders (filter bar and random pick)
-  var MILES = [0.25, 0.5, 1, 2, 3, 5, 10, 0];  // last stop = any distance
-  var RG_ANY = { d: MILES.length - 1, lo: 0, hi: 100 };
-  function num(v, lo, hi, d) { v = +v; return isFinite(v) && v >= lo && v <= hi ? v : d; }
-  var RG = { d: num(LS.get('rgd'), 0, MILES.length - 1, RG_ANY.d), lo: num(LS.get('rglo'), 0, 95, 0), hi: num(LS.get('rghi'), 5, 100, 100) };
-  if (RG.lo >= RG.hi) RG.lo = 0;
-  function rgMiles() { return MILES[RG.d] || 0; }
-  function rgActive() { return rgMiles() > 0 || RG.lo > 0 || RG.hi < 100; }
-  function distText() {
-    var mi = rgMiles();
-    return mi ? t('rg_mi', { x: mi }) + (mi <= 1 ? t('rg_walk', { m: Math.round(mi * 1609 * 1.25 / 80) }) : '') : t('rg_any');
-  }
-  function syncRange() {
-    var any = RG.lo === 0 && RG.hi === 100, from = $('f-from').selectedOptions[0];
-    document.querySelectorAll('[data-rg]').forEach(function (el) {
-      var d = el.querySelector('.rg-d'), lo = el.querySelector('.rg-lo'), hi = el.querySelector('.rg-hi'), dual = el.querySelector('.dual');
-      d.value = RG.d; lo.value = RG.lo; hi.value = RG.hi;
-      d.style.setProperty('--p', String(RG.d / (MILES.length - 1) * 100));
-      dual.style.setProperty('--a', String(RG.lo));
-      dual.style.setProperty('--b', String(RG.hi));
-      // The low thumb goes on top near the right end, so the two can always be pulled apart
-      lo.style.zIndex = RG.lo > 50 ? 3 : 1;
-      d.setAttribute('aria-label', t('rg_dist'));
-      lo.setAttribute('aria-label', t('rg_lo'));
-      hi.setAttribute('aria-label', t('rg_hi'));
-      el.querySelector('.rg-dv').textContent = distText();
-      el.querySelector('.rg-sv').textContent = any ? t('rg_any') : t('rg_pts', { a: RG.lo, b: RG.hi });
+  // Ranges on every dimension. Each slider steps through a list of stops; the state is [low stop, high stop] per dimension.
+  // One state, two panels (filter bar and random pick)
+  var SCORE_STOPS = [];
+  for (var sv = 0; sv <= 100; sv += 5) SCORE_STOPS.push(sv);
+  var RDIM = [
+    { k: 'dist', one: true, stops: [0.25, 0.5, 1, 2, 3, 5, 10, Infinity] },
+    { k: 'price', stops: [1, 2, 3, 4] },
+    { k: 'o', stops: SCORE_STOPS }, { k: 'taste', stops: SCORE_STOPS }, { k: 'pop', stops: SCORE_STOPS },
+    { k: 'value', stops: SCORE_STOPS }, { k: 'hyg', stops: SCORE_STOPS }, { k: 'conv', stops: SCORE_STOPS },
+    { k: 'count', stops: [0, 10, 25, 50, 100, 250, 500, 1000, 2500, Infinity] }
+  ];
+  var RDIM_BY = {};
+  RDIM.forEach(function (d) { RDIM_BY[d.k] = d; });
+  function rgFull() { var o = {}; RDIM.forEach(function (d) { o[d.k] = [0, d.stops.length - 1]; }); return o; }
+  // Saved state; a distance or overall range saved by the earlier two-slider version carries over
+  var RG = (function () {
+    var o = rgFull(), saved = null;
+    try { saved = JSON.parse(LS.get('rg', 'null')); } catch (e) { saved = null; }
+    if (saved && typeof saved === 'object') {
+      RDIM.forEach(function (d) {
+        var r = saved[d.k], last = d.stops.length - 1;
+        if (Array.isArray(r) && r.length === 2 && r.every(function (x) { return x === (x | 0); }) && r[0] >= 0 && r[0] <= r[1] && r[1] <= last) o[d.k] = r;
+      });
+    } else {
+      var od = +LS.get('rgd', 'x'), lo = +LS.get('rglo', 'x'), hi = +LS.get('rghi', 'x');
+      if (od >= 0 && od <= 7) o.dist = [0, od];
+      if (lo >= 0 && hi <= 100 && lo < hi) o.o = [lo / 5 | 0, hi / 5 | 0];
+    }
+    return o;
+  })();
+  function rgOn(k) { var r = RG[k]; return r[0] > 0 || r[1] < RDIM_BY[k].stops.length - 1; }
+  function rgActive() { return RDIM.some(function (d) { return rgOn(d.k); }); }
+  function rgMiles() { return rgOn('dist') ? RDIM_BY.dist.stops[RG.dist[1]] : 0; }
+  // What a query sends: distance as maxkm, every other set range as [low, high] values
+  function rgQuery() {
+    var out = {};
+    RDIM.forEach(function (d) {
+      if (d.k === 'dist' || !rgOn(d.k)) return;
+      var hi = d.stops[RG[d.k][1]];
+      out[d.k] = [d.stops[RG[d.k][0]], hi === Infinity ? 1e9 : hi];
     });
+    return out;
+  }
+  function rgName(k) { return t({ dist: 'rg_dist', price: 'rg_price', count: 'rg_count', o: 'rg_overall' }[k] || k); }
+  // How a range reads: 2 英里内 / $–$$ / 100 条以上 / 70–90 分; short = for the button, with the dimension's name
+  function rgText(k, short) {
+    var d = RDIM_BY[k], a = d.stops[RG[k][0]], b = d.stops[RG[k][1]];
+    if (!rgOn(k)) return t('rg_any');
+    if (k === 'dist') return t('rg_mi', { x: b }) + (!short && b <= 1 ? t('rg_walk', { m: Math.round(b * 1609 * 1.25 / 80) }) : '');
+    if (k === 'price') return '$'.repeat(a) + (a === b ? '' : '–' + '$'.repeat(b));
+    var v = k === 'count' ? (b === Infinity ? t('rg_n_min', { a: a }) : a === 0 ? t('rg_n_max', { b: b }) : t('rg_n', { a: a, b: b })) : t('rg_pts', { a: a, b: b });
+    return short ? rgName(k) + ' ' + v : v;
+  }
+  function rgPanel(el) {
+    el.innerHTML = RDIM.map(function (d) {
+      var input = function (cls) { return '<input type="range" class="' + cls + '" min="0" max="' + (d.stops.length - 1) + '" step="1">'; };
+      return '<div class="rg-item" data-k="' + d.k + '"><div class="rg-row"><span class="rg-n"></span><b class="rg-v"></b></div>' +
+        (d.one ? '<div class="one">' + input('rg-hi') + '</div>' : '<div class="dual"><i class="dual-fill"></i>' + input('rg-lo') + input('rg-hi') + '</div>') + '</div>';
+    }).join('') + '<p class="src rg-note"></p>';
+  }
+  document.querySelectorAll('[data-rg]').forEach(rgPanel);
+  function syncRange() {
+    var from = $('f-from').selectedOptions[0];
+    document.querySelectorAll('[data-rg] .rg-item').forEach(function (it) {
+      var k = it.getAttribute('data-k'), r = RG[k], last = RDIM_BY[k].stops.length - 1, lo = it.querySelector('.rg-lo'), hi = it.querySelector('.rg-hi');
+      it.querySelector('.rg-n').textContent = rgName(k);
+      it.querySelector('.rg-v').textContent = rgText(k, false);
+      it.classList.toggle('on', rgOn(k));
+      hi.value = r[1];
+      hi.setAttribute('aria-label', rgName(k) + (lo ? ' · ' + t('rg_hi') : ''));
+      if (lo) {
+        lo.value = r[0];
+        lo.setAttribute('aria-label', rgName(k) + ' · ' + t('rg_lo'));
+        // The low thumb goes on top in the right half, so two thumbs on one stop can still be pulled apart
+        lo.style.zIndex = r[0] > last / 2 ? 3 : 1;
+        it.querySelector('.dual').style.setProperty('--a', String(r[0] / last * 100));
+        it.querySelector('.dual').style.setProperty('--b', String(r[1] / last * 100));
+      } else hi.style.setProperty('--p', String(r[1] / last * 100));
+    });
+    document.querySelectorAll('.rg-note').forEach(function (el) { el.textContent = t('rg_note'); });
     document.querySelectorAll('.rg-from').forEach(function (el) { el.textContent = from ? t('rg_from', { p: from.textContent }) : ''; });
-    var parts = [];
-    if (rgMiles()) parts.push(t('rg_mi', { x: rgMiles() }));
-    if (!any) parts.push(t('rg_pts', { a: RG.lo, b: RG.hi }));
-    $('f-range').textContent = parts.length ? parts.join(' · ') : t('rg_btn');
+    var parts = RDIM.filter(function (d) { return rgOn(d.k); }).map(function (d) { return rgText(d.k, true); });
+    $('f-range').textContent = parts.length ? parts.slice(0, 2).join(' · ') + (parts.length > 2 ? ' +' + (parts.length - 2) : '') : t('rg_btn');
     $('f-range').classList.toggle('on', parts.length > 0);
+    document.querySelectorAll('.rg-sum').forEach(function (el) { el.textContent = t('rg_sum', { x: parts.length ? parts.join(' · ') : t('rg_any') }); });
   }
   var rgT = null, fitRing = false;
   function rangeChanged(distMoved) {
-    LS.set('rgd', RG.d); LS.set('rglo', RG.lo); LS.set('rghi', RG.hi);
+    LS.set('rg', JSON.stringify(RG));
     if (distMoved) fitRing = true;
     syncRange();
     // Dragging sends one request when it settles
@@ -386,10 +442,17 @@
     rgT = setTimeout(function () { apply(); if ($('rnd').open) roll(); }, DS.remote ? 350 : 120);
   }
   document.querySelectorAll('[data-rg]').forEach(function (el) {
-    el.querySelector('.rg-d').addEventListener('input', function () { RG.d = +this.value; rangeChanged(true); });
-    el.querySelector('.rg-lo').addEventListener('input', function () { RG.lo = Math.min(+this.value, RG.hi - 5); rangeChanged(); });
-    el.querySelector('.rg-hi').addEventListener('input', function () { RG.hi = Math.max(+this.value, RG.lo + 5); rangeChanged(); });
+    el.addEventListener('input', function (e) {
+      var it = e.target.closest('.rg-item');
+      if (!it) return;
+      var k = it.getAttribute('data-k'), r = RG[k].slice(), v = +e.target.value;
+      if (e.target.classList.contains('rg-lo')) r[0] = Math.min(v, r[1]); else r[1] = Math.max(v, r[0]);
+      RG[k] = r;
+      rangeChanged(k === 'dist');
+    });
   });
+  $('rnd-rg').open = LS.get('rgopen', '0') === '1';
+  $('rnd-rg').addEventListener('toggle', function () { LS.set('rgopen', this.open ? '1' : '0'); });
   function hideRange(focus) {
     if ($('f-range-pop').hidden) return;
     $('f-range-pop').hidden = true;
@@ -402,7 +465,7 @@
     this.setAttribute('aria-expanded', String(!p.hidden));
   };
   $('f-range-pop').addEventListener('click', function (e) {
-    if (e.target.closest('[data-rg-clear]')) { RG = { d: RG_ANY.d, lo: 0, hi: 100 }; rangeChanged(true); }
+    if (e.target.closest('[data-rg-clear]')) { RG = rgFull(); rangeChanged(true); }
     if (e.target.closest('[data-rg-done]')) hideRange(true);
   });
   function buildFilters() {
@@ -434,7 +497,7 @@
       text: $('q').value.trim(), kind: $('f-kind').value, cuis: cuisPick.get(), plat: $('f-plat').value, tag: $('f-tag').value,
       open: $('f-open').getAttribute('aria-pressed') === 'true', rated: $('f-rated').value, sort: $('f-sort').value,
       ref: refPoint(), from: $('f-from').value, offset: offset || 0,
-      min: RG.lo, max: RG.hi, maxkm: rgMiles() * 1.609
+      maxkm: rgMiles() * 1.609, ranges: rgQuery()
     };
   }
   function moreLabel() {
@@ -499,8 +562,8 @@
   function resetFilters() {
     $('q').value = '';
     cuisPick.clear();
-    RG = { d: RG_ANY.d, lo: 0, hi: 100 };
-    LS.set('rgd', RG.d); LS.set('rglo', 0); LS.set('rghi', 100);
+    RG = rgFull();
+    LS.set('rg', JSON.stringify(RG));
     syncRange();
     $('f-open').setAttribute('aria-pressed', 'false');
     ['f-kind', 'f-tag', 'f-plat', 'f-rated'].forEach(function (id) { $(id).value = ''; });
@@ -675,7 +738,9 @@
         (dishMeta(dp[0]) ? '<span>' + esc(dishMeta(dp[0])) + '</span>' : '') + '</figcaption>' : '';
       o.hero = '<figure class="hero"><img src="' + esc(d.hero) + '" alt="" referrerpolicy="no-referrer">' + cap + '</figure>';
     }
-    var sub = [(p.c || []).map(cuisLabel).join(' / ') || kindLabel(p.k), p.pr ? '$'.repeat(p.pr) : ''].filter(Boolean).join(' · ');
+    // Price: the $ level, with diners' per-person spend when known; a level guessed from menu prices says so
+    var price = p.pr ? '$'.repeat(p.pr) + ((d.sp || []).length ? ' · ' + t('spend', { x: Math.round(d.sp[0]), n: d.sp[1] }) : d.ps === 'menu' ? ' ' + t('price_menu') : '') : '';
+    var sub = [(p.c || []).map(cuisLabel).join(' / ') || kindLabel(p.k), price].filter(Boolean).join(' · ');
     var st = statusText(p);
     o.addr = '<div class="dline">' + (p.a ? esc(p.a) + ' · ' : '') + '<a href="' + gmapsUrl(p, d) + '" target="_blank" rel="noopener">' + t('map_link') + '</a>' +
       (p.dk != null ? ' · <span class="dist">' + distLabel(p.dk) + '</span>' : '') + '</div>';

@@ -262,15 +262,15 @@ html[lang|="zh"] .plat-price p { max-width: none; }
 .sk i + i, .sk-line.short { width: 42%; }
 
 /* Range sliders: distance (one thumb) and score (two thumbs); --p, --a, --b are 0–100 */
-.rg { display: grid; gap: 4px; }
+.rg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; row-gap: 2px; }
 .rg-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 14px; }
 .rg-row b { font-weight: 700; text-align: right; }
 .rg input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; margin: 0 0 6px; background: none; cursor: pointer; }
 .rg input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--line); }
-.rg input[type="range"].rg-d::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--ink) calc(10px + (100% - 20px) * var(--p, 0) / 100), var(--line) 0); }
+.rg .one input[type="range"]::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--ink) calc(10px + (100% - 20px) * var(--p, 0) / 100), var(--line) 0); }
 .rg input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -8px; border-radius: 50%; background: var(--paper); border: 2px solid var(--ink); }
 .rg input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line); }
-.rg .rg-d::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--ink); }
+.rg .one input[type="range"]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--ink); }
 .rg input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--paper); border: 2px solid var(--ink); }
 .dual { position: relative; height: 28px; margin-bottom: 6px; }
 .dual::before, .dual-fill { content: ""; position: absolute; top: 12px; height: 4px; border-radius: 2px; }
@@ -284,11 +284,31 @@ html[lang|="zh"] .plat-price p { max-width: none; }
 .rg-origin { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
 .rg-origin select { flex: 1; min-width: 0; }
 .rg-foot { justify-content: space-between; align-items: center; }
+.rg-item { min-width: 0; }
+.rg-item.on .rg-n { font-weight: 700; }
+.rg-note { grid-column: 1 / -1; margin: 2px 0 0; }
+.rg-pop { width: min(600px, calc(100vw - 32px)); max-height: min(80vh, 660px); overflow-y: auto; }
+/* In the random pick the ranges fold away under one summary line */
+.rnd { max-height: calc(100vh - 32px); overflow-y: auto; }
+.rnd-rg summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; font-weight: 600; }
+.rnd-rg summary::-webkit-details-marker { display: none; }
+.rnd-rg summary::after { content: "+"; flex: none; font-weight: 400; font-size: 20px; line-height: 1; }
+.rnd-rg[open] summary::after { content: "−"; }
+.rnd-rg .rg { margin-top: 10px; column-gap: 18px; }
+.rg-sum { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 520px) {
+  .rg { grid-template-columns: minmax(0, 1fr); }
+  .rg-pop { max-height: calc(100dvh - 140px); }
+  .rg input[type="range"] { height: 24px; margin-bottom: 2px; }
+  .dual { height: 24px; margin-bottom: 2px; }
+  .dual::before, .dual-fill { top: 10px; }
+}
 
 /* Random pick: a small dialog over the page */
 .rnd { width: min(420px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--ink); border-radius: 16px; background: var(--paper); color: var(--ink); }
 .rnd::backdrop { background: rgba(0, 0, 0, .5); }
-.rnd-in { padding: 16px 18px 18px; display: grid; gap: 14px; }
+.rnd-in { padding: 16px 18px 18px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.rnd:has(.rnd-rg[open]) { width: min(560px, calc(100vw - 32px)); }
 .rnd-top { display: flex; justify-content: space-between; align-items: center; }
 .rnd-top b { font-size: 17px; font-weight: 800; }
 .rnd-x { width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--paper); color: var(--ink); font-size: 18px; line-height: 1; }
@@ -312,8 +332,6 @@ html[lang|="zh"] .plat-price p { max-width: none; }
 .rnd-act .act:disabled { opacity: .4; cursor: default; }
 .rnd-range { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
 .rnd-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; color: var(--graphite); }
-.rnd-foot label { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); cursor: pointer; }
-.rnd-foot input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
 
 /* Place page: the place on the left; map, address, ordering and scores on the right, staying in view */
 .gpage { position: absolute; inset: 0; z-index: 30; overflow-y: auto; overscroll-behavior: contain; background: var(--paper); }
@@ -431,3 +449,5 @@ html[lang|="zh"] .plat-price p { max-width: none; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .iconbtn svg { transform: rotate(180deg); } }
 /* The Star / Feedback pill steps aside for the full-screen details view on phones */
 @media (max-width: 760px) { body.drawer-open { --wgfb-display: none; } }
+/* ...and for an open range or cuisine panel, whose buttons sit at the bottom */
+@media (max-width: 760px) { body:has(.pick-pop:not([hidden])) { --wgfb-display: none; } }

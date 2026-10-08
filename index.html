@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="style.css?v=fe2c3f2fb0">
+<link rel="stylesheet" href="style.css?v=0e903b80e9">
 </head>
 <body>
 <header class="top">
@@ -48,12 +48,7 @@
         <div class="picker"><button class="pick-btn" id="f-cuis" type="button" aria-haspopup="true" aria-expanded="false"></button><div class="pick-pop" id="f-cuis-pop" hidden></div></div>
         <div class="picker"><button class="pick-btn" id="f-range" type="button" aria-haspopup="true" aria-expanded="false"></button>
           <div class="pick-pop rg-pop" id="f-range-pop" hidden>
-            <div class="rg" data-rg>
-              <div class="rg-row"><span data-i18n="rg_dist">距离</span><b class="rg-dv"></b></div>
-              <input type="range" class="rg-d" min="0" max="7" step="1">
-              <div class="rg-row"><span data-i18n="rg_score">评分</span><b class="rg-sv"></b></div>
-              <div class="dual"><i class="dual-fill"></i><input type="range" class="rg-lo" min="0" max="100" step="5"><input type="range" class="rg-hi" min="0" max="100" step="5"></div>
-            </div>
+            <div class="rg" data-rg></div>
             <div class="wide rg-origin"><span class="lbl" data-i18n="dist_from">距离从</span><select id="f-from" aria-label="Distance from"></select></div>
             <div class="pick-foot rg-foot"><button type="button" class="linkish" data-rg-clear data-i18n="pick_clear">清空</button><button type="button" class="pick-done" data-rg-done data-i18n="pick_done">完成</button></div>
           </div>
@@ -111,12 +106,7 @@
       <button class="act" id="rnd-again" type="button" data-i18n="rnd_again">换一家</button>
     </div>
     <div class="rnd-range">
-      <div class="rg" data-rg>
-        <div class="rg-row"><span data-i18n="rg_dist">距离</span><b class="rg-dv"></b></div>
-        <input type="range" class="rg-d" min="0" max="7" step="1">
-        <div class="rg-row"><span data-i18n="rg_score">评分</span><b class="rg-sv"></b></div>
-        <div class="dual"><i class="dual-fill"></i><input type="range" class="rg-lo" min="0" max="100" step="5"><input type="range" class="rg-hi" min="0" max="100" step="5"></div>
-      </div>
+      <details class="rnd-rg" id="rnd-rg"><summary><span class="rg-sum"></span></summary><div class="rg" data-rg></div></details>
       <div class="rnd-foot"><span class="rg-from"></span><span id="rnd-from"></span></div>
     </div>
   </div>
@@ -125,7 +115,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="data/config.js?v=32ab0ec65c"></script>
 <script src="guard-client.js?v=9af92d3c84"></script>
-<script src="app.js?v=79b7b43189"></script>
+<script src="app.js?v=3df90306a7"></script>
 <script src="feedback.js?v=f6ff8df4eb" data-site="eats" data-star="WEBGRS/madison-food-map" data-float-bottom-narrow="72" data-narrow-max="760" defer></script>
 </body>
 </html>
