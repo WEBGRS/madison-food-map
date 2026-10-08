@@ -270,8 +270,13 @@
       .replace(/(常夸|吐槽)([^；。]+)/g, '$1<b>$2</b>').replace(/(Reviewers praise |[Cc]omplaints: )([^;.]+)/g, '$1<b>$2</b>');
   }
   // Cuisine · price · open until · distance (the distance is what gets cut on narrow screens)
+  // Cuisines, or the kind of place for a grocery store (its "bakery" tag is one aisle, not what it is)
+  function cuisLine(p, n) {
+    if (p.k === 'market') return kindLabel(p.k);
+    return (p.c || []).slice(0, n || 9).map(cuisLabel).join(' / ') || kindLabel(p.k);
+  }
   function metaHtml(p, op) {
-    var parts = [(p.c || []).slice(0, 2).map(cuisLabel).join(' / ') || kindLabel(p.k), p.pr ? '$'.repeat(p.pr) : ''].filter(Boolean).map(esc);
+    var parts = [cuisLine(p, 2), p.pr ? '$'.repeat(p.pr) : ''].filter(Boolean).map(esc);
     if (op) parts.push('<span class="op">' + esc(op) + '</span>');
     if (p.dk != null) parts.push(esc(distLabel(p.dk)));
     return parts.join(' · ');
@@ -754,7 +759,7 @@
     }
     // Price: the $ level, with diners' per-person spend when known; a level guessed from menu prices says so
     var price = p.pr ? '$'.repeat(p.pr) + ((d.sp || []).length ? ' · ' + t('spend', { x: Math.round(d.sp[0]), n: d.sp[1] }) : d.ps === 'menu' ? ' ' + t('price_menu') : '') : '';
-    var sub = [(p.c || []).map(cuisLabel).join(' / ') || kindLabel(p.k), price].filter(Boolean).join(' · ');
+    var sub = [cuisLine(p), price].filter(Boolean).join(' · ');
     var st = statusText(p);
     o.addr = '<div class="dline">' + (p.a ? esc(p.a) + ' · ' : '') + '<a href="' + gmapsUrl(p, d) + '" target="_blank" rel="noopener">' + t('map_link') + '</a>' +
       (p.dk != null ? ' · <span class="dist">' + distLabel(p.dk) + '</span>' : '') + '</div>';
