@@ -51,20 +51,20 @@
       all_kinds: '所有类型', all_cuis: '所有菜系', any_plat: '不限外卖平台', no_plat: '不在任何外卖平台', on: '能在 {p} 下单',
       any_tag: '任何场合', all_rated: '有没有评分都显示', rated: '只看有评分的', confident: '只看评分人数多的',
       sort_overall: '综合排序', sort_taste: '口味最好', sort_pop: '最有人气', sort_value: '最划算', sort_hyg: '卫生最好',
-      sort_dist: '离我最近', sort_count: '评分人数最多',
+      sort_dist: '离我最近', sort_count: '外卖评分最多',
       from_home: '家', from_gps: '我的位置', from_campus: '校园 Library Mall', from_capitol: '州议会',
       count: '{n} 家', more: '再显示 {n} 家', empty: '没有符合条件的店，换个关键词或者放宽筛选试试。', show_map: '地图', show_list: '列表',
       rnd_btn: '随机一家', rnd_title: '今天吃这家？', rnd_go: '就它了', rnd_again: '换一家', rnd_from: '从 {n} 家里挑',
       rnd_none: '当前的搜索和筛选下没有店。', rnd_none_rg: '这个范围里没有店，放宽距离或评分再试。',
       spend: '人均约 ${x}（{n} 位 Google 用户填写）', price_menu: '（按菜价估）',
-      rg_btn: '范围', rg_dist: '距离', rg_price: '价格', rg_count: '评分人数', rg_overall: '综合评分', rg_any: '不限',
+      rg_btn: '范围', rg_dist: '距离', rg_price: '价格', rg_count: '外卖评分数', rg_overall: '综合评分', rg_any: '不限',
       rg_mi: '{x} 英里内', rg_walk: '（步行约 {m} 分钟）', rg_pts: '{a}–{b} 分', rg_n: '{a}–{b} 条', rg_n_min: '{a} 条以上', rg_n_max: '最多 {b} 条',
       rg_from: '从 {p} 算', rg_lo: '下限', rg_hi: '上限', rg_sum: '范围：{x}', rg_note: '某一项设了范围后，缺这一项数据的店不显示（比如价格未知的店）。',
       reset: '清除搜索和筛选', foot: '数据来自县卫生局执照与检查记录、OpenStreetMap、Google 地图、DoorDash、Uber Eats、Grubhub、EatStreet、Toast 和 r/madisonwi，更新于 {d}。分数是和麦迪逊其他店比的相对分，50 大约是中位数。',
       open_until: '营业中，{t} 关门', open_24: '24 小时营业', opens_at: '{d}{t} 开门', today: '今天 ', tomorrow: '明天 ',
       closed_today: '今天休息', perm_closed: '可能已永久关闭', temp_closed: '暂停营业', maybe_closed: '可能已关门或换店',
       taste: '口味', pop: '人气', value: '性价比', hyg: '卫生', conv: '方便', not_rated: '暂无评分',
-      dishes: '推荐菜', dishes_note: '外卖平台上的热销菜和点过的人的好评率', hero_dish: '热销菜', liked: '{p}% 好评（{n} 人）', liked_s: '{p}% 好评',
+      dishes: '推荐菜', dishes_note: '外卖平台店铺页推荐的菜；标「热销」的也在点单最多的列表里。百分比是点过的人的好评率', best: '热销', hero_dish: '热销菜', hero_feat: '推荐菜', liked: '{p}% 好评（{n} 人）', liked_s: '{p}% 好评',
       ratings: '各平台评分', hours: '营业时间',
       full: '完整分析', reviews: '顾客评价', reddit: 'Reddit 上的讨论', insp: '卫生检查', about: '数据来源和评分标准',
       call: '打电话', site: '官网', map_link: 'Google 地图', paused: '暂停', order_on: '在 {p} 下单',
@@ -102,20 +102,20 @@
       all_kinds: 'All types', all_cuis: 'All cuisines', any_plat: 'Any delivery app', no_plat: 'Not on any app', on: 'Order on {p}',
       any_tag: 'Any occasion', all_rated: 'Rated or not', rated: 'Rated only', confident: 'Well-rated only',
       sort_overall: 'Best overall', sort_taste: 'Best taste', sort_pop: 'Most popular', sort_value: 'Best value', sort_hyg: 'Cleanest',
-      sort_dist: 'Closest', sort_count: 'Most ratings',
+      sort_dist: 'Closest', sort_count: 'Most app ratings',
       from_home: 'Home', from_gps: 'My location', from_campus: 'Campus (Library Mall)', from_capitol: 'Capitol',
       count: '{n} places', more: 'Show {n} more', empty: 'Nothing matches. Try another word or loosen the filters.', show_map: 'Map', show_list: 'List',
       rnd_btn: 'Pick one for me', rnd_title: 'How about this one?', rnd_go: 'Open it', rnd_again: 'Try another', rnd_from: 'from {n} places',
       rnd_none: 'Nothing matches the current search and filters.', rnd_none_rg: 'Nothing in this range; widen the distance or the score.',
       spend: 'about ${x} per person ({n} Google diners)', price_menu: '(estimated from menu prices)',
-      rg_btn: 'Range', rg_dist: 'Distance', rg_price: 'Price', rg_count: 'Ratings', rg_overall: 'Overall', rg_any: 'Any',
+      rg_btn: 'Range', rg_dist: 'Distance', rg_price: 'Price', rg_count: 'App ratings', rg_overall: 'Overall', rg_any: 'Any',
       rg_mi: 'within {x} mi', rg_walk: ' (~{m} min walk)', rg_pts: '{a}–{b}', rg_n: '{a}–{b} ratings', rg_n_min: '{a}+ ratings', rg_n_max: 'up to {b} ratings',
       rg_from: 'measured from {p}', rg_lo: 'low end', rg_hi: 'high end', rg_sum: 'Range: {x}', rg_note: 'Once a range is set, places with no data for it are left out (unknown price, for one).',
       reset: 'Clear search and filters', foot: 'Data from county food licences and inspections, OpenStreetMap, Google Maps, DoorDash, Uber Eats, Grubhub, EatStreet, Toast and r/madisonwi, updated {d}. Scores are relative to other Madison places; 50 is about the median.',
       open_until: 'Open until {t}', open_24: 'Open 24 hours', opens_at: 'Opens {d}{t}', today: '', tomorrow: 'tomorrow ',
       closed_today: 'Closed today', perm_closed: 'May be permanently closed', temp_closed: 'Temporarily closed', maybe_closed: 'May have closed or changed',
       taste: 'Taste', pop: 'Popularity', value: 'Value', hyg: 'Hygiene', conv: 'Convenience', not_rated: 'No ratings yet',
-      dishes: 'Popular dishes', dishes_note: 'Best sellers on the delivery apps and how many buyers liked them', hero_dish: 'Best seller',
+      dishes: 'Featured dishes', dishes_note: 'Dishes the delivery apps feature; "best seller" ones are also on the most-ordered list. The percentage is how many buyers liked it', best: 'best seller', hero_dish: 'Best seller', hero_feat: 'Featured',
       liked: '{p}% liked ({n})', liked_s: '{p}% liked', ratings: 'Ratings by source',
       hours: 'Hours', full: 'Full analysis', reviews: 'Customer reviews', reddit: 'On r/madisonwi', insp: 'Health inspections',
       about: 'Sources and scoring', call: 'Call', site: 'Website', map_link: 'Google Maps', paused: 'paused', order_on: 'Order on {p}',
@@ -726,10 +726,11 @@
     if (lang === 'zh' && zh) return [zh, zh === x[0] ? '' : x[0]];
     return [x[0], x[1] || ''];
   }
-  function dishMeta(x, short) {
+  function dishMeta(x, short, noBest) {
     var m = /(\d+)%\s*\((\d+)\)/.exec(x[4] || '');
     var liked = m ? t(short ? 'liked_s' : 'liked', { p: m[1], n: m[2] }) : x[4] || '';
-    return [x[2] ? '$' + Number(x[2]).toFixed(2) : '', liked].filter(Boolean).join(' · ');
+    // [6]: also on the delivery app's most-ordered list (the photo caption says so in its own label)
+    return [x[6] && !noBest ? t('best') : '', x[2] ? '$' + Number(x[2]).toFixed(2) : '', liked].filter(Boolean).join(' · ');
   }
   function fold(title, body, note) {
     return '<details class="fold"><summary>' + esc(title) + (note ? '<small>' + esc(note) + '</small>' : '') + '</summary><div class="fold-body">' + body + '</div></details>';
@@ -747,8 +748,8 @@
     o.hero = '';
     if (d.hero) {
       var hn = hd ? dishName(dp[0], 5) : null;
-      var cap = hd ? '<figcaption><small>' + t('hero_dish') + '</small><b>' + esc(hn[0]) + '</b>' + (hn[1] ? '<em>' + esc(hn[1]) + '</em>' : '') +
-        (dishMeta(dp[0]) ? '<span>' + esc(dishMeta(dp[0])) + '</span>' : '') + '</figcaption>' : '';
+      var cap = hd ? '<figcaption><small>' + t(dp[0][6] ? 'hero_dish' : 'hero_feat') + '</small><b>' + esc(hn[0]) + '</b>' + (hn[1] ? '<em>' + esc(hn[1]) + '</em>' : '') +
+        (dishMeta(dp[0], false, true) ? '<span>' + esc(dishMeta(dp[0], false, true)) + '</span>' : '') + '</figcaption>' : '';
       o.hero = '<figure class="hero"><img src="' + esc(d.hero) + '" alt="" referrerpolicy="no-referrer">' + cap + '</figure>';
     }
     // Price: the $ level, with diners' per-person spend when known; a level guessed from menu prices says so
