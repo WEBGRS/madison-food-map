@@ -2,7 +2,7 @@
 
 Every place to eat in Madison and the rest of Dane County, WI on one map, scored from six rating sources, with which delivery apps carry each one.
 
-**Open it: https://webgrs.github.io/madison-food-map/**
+**Open it: https://food.madisonstudents.com/**
 
 ![All places](docs/list.png)
 
