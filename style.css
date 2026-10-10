@@ -32,7 +32,7 @@ img { display: block; }
 
 /* Header */
 .top { height: 56px; flex: none; display: flex; align-items: center; gap: 28px; padding: 0 20px; border-bottom: 1px solid var(--ink); background: var(--paper); position: relative; z-index: 1000; }
-.wordmark { font-weight: 800; font-size: 21px; letter-spacing: -.03em; white-space: nowrap; }
+.wordmark { font-weight: 800; font-size: 21px; letter-spacing: -.03em; white-space: nowrap; color: inherit; text-decoration: none; }
 .tabs { display: flex; gap: 2px; height: 100%; }
 .tab { border: 0; background: none; padding: 0 12px; font-weight: 600; color: var(--graphite); border-bottom: 3px solid transparent; margin-bottom: -1px; }
 .tab.active { color: var(--ink); border-bottom-color: var(--ink); }
