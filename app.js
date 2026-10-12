@@ -41,11 +41,16 @@
   };
   var lang = LS.get('lang', /^zh/i.test(navigator.language || '') ? 'zh' : 'en');
 
+  // Saved places: stable ids (sk), kept in this browser and in the account
+  var FAV = [], sync = null;
+  try { var fj = JSON.parse(LS.get('saved', '[]')); if (Array.isArray(fj)) FAV = fj.filter(function (v) { return typeof v === 'string'; }); } catch (e) { /* bad value */ }
+  function isFav(sk) { return FAV.indexOf(sk) >= 0; }
+
   var T = {
     zh: {
       tab_grid: '全部餐馆', tab_grid_s: '全部', tab_map: '地图', tab_map_s: '地图', tab_plat: '外卖平台', tab_plat_s: '外卖',
       back: '全部餐馆', map_of: '{n} 的位置', search_ph: '搜店名、菜系或菜名', search_ph2: '搜店名',
-      open_now: '营业中', more_filters: '更多筛选', dist_from: '距离从', theme: '切换黑白',
+      open_now: '营业中', save: '收藏', saved: '已收藏', more_filters: '更多筛选', dist_from: '距离从', theme: '切换黑白',
       pick_title: '选菜系，可以多选', pick_clear: '清空', pick_done: '完成', cuis_n: '{a}等 {n} 种',
       open_short: '营业至 {t}', open_short24: '24 小时营业',
       all_kinds: '所有类型', all_cuis: '所有菜系', any_plat: '不限外卖平台', no_plat: '不在任何外卖平台', on: '能在 {p} 下单',
@@ -100,7 +105,7 @@
     en: {
       tab_grid: 'All places', tab_grid_s: 'All', tab_map: 'Map', tab_map_s: 'Map', tab_plat: 'Delivery apps', tab_plat_s: 'Delivery',
       back: 'All places', map_of: 'Where {n} is', search_ph: 'Name, cuisine or dish', search_ph2: 'Search by name',
-      open_now: 'Open now', more_filters: 'More filters', dist_from: 'Distance from', theme: 'Switch black and white',
+      open_now: 'Open now', save: 'Save', saved: 'Saved', more_filters: 'More filters', dist_from: 'Distance from', theme: 'Switch black and white',
       pick_title: 'Cuisines: pick any', pick_clear: 'Clear', pick_done: 'Done', cuis_n: '{a} +{m}',
       open_short: 'open till {t}', open_short24: 'open 24h',
       all_kinds: 'All types', all_cuis: 'All cuisines', any_plat: 'Any delivery app', no_plat: 'Not on any app', on: 'Order on {p}',
@@ -161,6 +166,30 @@
   }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function $(id) { return document.getElementById(id); }
+  function favBtn(p) {
+    if (!p.sk) return '';
+    var on = isFav(p.sk), k = t(on ? 'saved' : 'save');
+    return '<button type="button" class="save" data-save="' + esc(p.sk) + '" aria-pressed="' + on + '" aria-label="' + esc(k) + '" title="' + esc(k) + '">' + (on ? '★' : '☆') + '</button>';
+  }
+  function favUI() {
+    document.querySelectorAll('.save').forEach(function (b) {
+      var on = isFav(b.getAttribute('data-save')), k = t(on ? 'saved' : 'save');
+      b.setAttribute('aria-pressed', String(on));
+      b.setAttribute('aria-label', k);
+      b.title = k;
+      b.textContent = on ? '★' : '☆';
+    });
+    $('f-saved').textContent = t('saved') + (FAV.length ? ' · ' + FAV.length : '');
+  }
+  function savedOn() { return $('f-saved').getAttribute('aria-pressed') === 'true'; }
+  function toggleFav(sk) {
+    var k = FAV.indexOf(sk);
+    if (k >= 0) FAV.splice(k, 1); else FAV.push(sk);
+    LS.set('saved', JSON.stringify(FAV));
+    favUI();
+    if (sync) sync.changed();
+    if (k >= 0 && savedOn()) apply();
+  }
   function fmtN(n) { return n >= 1000 ? (Math.round(n / 100) / 10) + 'k' : String(n); }
 
   // Message for a refused request (daily quota, too fast, blocked)
@@ -602,7 +631,7 @@
       text: $('q').value.trim(), kind: $('f-kind').value, cuis: cuisPick.get(), plat: $('f-plat').value, tag: $('f-tag').value,
       open: $('f-open').getAttribute('aria-pressed') === 'true', rated: $('f-rated').value, sort: $('f-sort').value,
       ref: refPoint(), from: $('f-from').value, offset: offset || 0,
-      maxkm: rgMiles() * 1.609, ranges: rgQuery(), w: wParam()
+      maxkm: rgMiles() * 1.609, ranges: rgQuery(), w: wParam(), saved: savedOn() ? FAV.slice() : undefined
     };
   }
   function moreLabel() {
@@ -658,7 +687,7 @@
   }
   // Nothing found: say so, and offer to drop the search and filters when there are any
   function filtered() {
-    return !!($('q').value.trim() || cuisPick.get().length || rgActive() || $('f-open').getAttribute('aria-pressed') === 'true' ||
+    return !!($('q').value.trim() || cuisPick.get().length || rgActive() || $('f-open').getAttribute('aria-pressed') === 'true' || savedOn() ||
       ['f-kind', 'f-tag', 'f-plat', 'f-rated'].some(function (id) { return $(id).value; }));
   }
   function emptyHtml() {
@@ -671,6 +700,7 @@
     LS.set('rg', JSON.stringify(RG));
     syncRange();
     $('f-open').setAttribute('aria-pressed', 'false');
+    $('f-saved').setAttribute('aria-pressed', 'false');
     ['f-kind', 'f-tag', 'f-plat', 'f-rated'].forEach(function (id) { $(id).value = ''; });
     apply();
   }
@@ -683,7 +713,7 @@
         '<div class="body"><div class="nm">' + esc(p.n) + (p.z ? '<span class="zh">' + esc(p.z) + '</span>' : '') + '</div>' +
         hlHtml(p, X.badge ? X.badge(full(p), lang) : '') + '<div class="meta">' + metaHtml(p, op) + '</div>' +
         (p.cl ? '<div class="flag">' + esc(statusText(p)) + '</div>' : '') +
-        '</div>' + scoreHtml(p.o) + '</li>';
+        '</div>' + scoreHtml(p.o) + favBtn(p) + '</li>';
     }).join('');
     if (total > view.length) html += '<li><button class="more-btn" id="more">' + t('more', { n: Math.min(60, total - view.length) }) + '</button></li>';
     if (!view.length) html = emptyHtml();
@@ -703,7 +733,7 @@
       var op = open ? (st.all ? t('open_short24') : t('open_short', { t: hm(st.until) })) : '';
       return '<li' + (k >= animFrom ? ' class="in" style="--k:' + Math.min(k - animFrom, 12) + '"' : '') + '><a class="card" href="#p=' + p.i + '">' + cardImg(p) +
         '<div class="cbody"><div class="nm">' + esc(p.n) + (p.z ? '<span class="zh">' + esc(p.z) + '</span>' : '') + '</div>' + hlHtml(p, X.badge ? X.badge(full(p), lang) : '') +
-        '<div class="meta">' + metaHtml(p, op) + '</div>' + (p.cl ? '<div class="flag">' + esc(statusText(p)) + '</div>' : '') + '</div></a></li>';
+        '<div class="meta">' + metaHtml(p, op) + '</div>' + (p.cl ? '<div class="flag">' + esc(statusText(p)) + '</div>' : '') + '</div></a>' + favBtn(p) + '</li>';
     }).join('') : emptyHtml();
     animFrom = 1e9;
     $('grid').classList.remove('busy');
@@ -866,7 +896,7 @@
     // The page shows the address under its small map instead
     o.head = function (withAddr) {
       return '<div class="dhead"><div><h2>' + esc(p.n) + '</h2>' + (p.z ? '<div class="zh2">' + esc(p.z) + '</div>' : '') +
-        '<div class="dline">' + esc(sub) + '</div>' + (withAddr ? o.addr : '') + (st ? '<div class="dline st">' + esc(st) + '</div>' : '') + '</div>' + scoreHtml(p.o, true) + '</div>';
+        '<div class="dline">' + esc(sub) + '</div>' + (withAddr ? o.addr : '') + (st ? '<div class="dline st">' + esc(st) + '</div>' : '') + '</div>' + '<div class="dtop">' + favBtn(p) + scoreHtml(p.o, true) + '</div></div>';
     };
     // The verdict sits right under the name: warnings, the one-line verdict, then rank and what reviewers say
     var an = (d.an && d.an[lang]) || [], nk = d.an ? d.an.k : an.length, nw = d.an ? d.an.w || 0 : 0;
@@ -1098,6 +1128,7 @@
     $('theme').title = t('theme');
     $('gfoot').textContent = t('foot', { d: META.built || '' });
     $('switcher').textContent = document.body.classList.contains('show-map') ? t('show_list') : t('show_map');
+    favUI();
     renderLegend();
   }
   $('lang').onclick = function () {
@@ -1120,11 +1151,17 @@
     if (!$('f-range').parentNode.contains(e.target)) hideRange(false);
     if (!$('f-wt').parentNode.contains(e.target)) hideWeights(false);
   });
+  $('f-saved').onclick = function () { this.setAttribute('aria-pressed', String(!savedOn())); apply(); };
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('.save');
+    if (b) { e.preventDefault(); e.stopPropagation(); toggleFav(b.getAttribute('data-save')); }
+  });
   $('f-open').onclick = function () { this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); apply(); };
   $('f-more').onclick = function () {
     var p = $('more-panel'); p.hidden = !p.hidden; this.setAttribute('aria-expanded', String(!p.hidden));
   };
   $('f-from').addEventListener('change', function () {
+    if (sync) sync.changed();
     syncRange();
     fitRing = true;
     if ($('f-from').value === 'gps' && !gps && navigator.geolocation) {
@@ -1133,7 +1170,7 @@
     }
     apply();
   });
-  $('list').addEventListener('click', function (e) { var li = e.target.closest('.item'); if (li) openPlace(+li.getAttribute('data-i'), false); });
+  $('list').addEventListener('click', function (e) { if (e.target.closest('.save')) return; var li = e.target.closest('.item'); if (li) openPlace(+li.getAttribute('data-i'), false); });
   $('gmore').onclick = function () { loadMore(this); };
   document.addEventListener('click', function (e) { if (e.target.closest('[data-reset]')) resetFilters(); });
   // Views: the card grid, the map with its list, the delivery apps; one filter bar moves to whichever list is showing
@@ -1287,6 +1324,25 @@
     if (curView === 'map') openPlace(+m[1], false);
     else { showView('grid'); openPage(+m[1], false); }
   }
+  // Keep saved places and the distance origin in the account
+  var FROM0 = LOCAL.home ? 'home' : 'campus';
+  if (window.MSSync) sync = window.MSSync('eats', {
+    get: function () { var f = $('f-from').value; return { saved: FAV.slice(), from: f === 'gps' ? FROM0 : f }; },
+    set: function (d) {
+      FAV = d && Array.isArray(d.saved) ? d.saved.filter(function (v) { return typeof v === 'string'; }) : [];
+      LS.set('saved', JSON.stringify(FAV));
+      var f = d && typeof d.from === 'string' ? d.from : FROM0, sel = $('f-from');
+      if (f === 'gps' || !Array.prototype.some.call(sel.options, function (o) { return o.value === f; })) f = d ? sel.value : FROM0;
+      if (f !== sel.value) { sel.value = f; syncRange(); fitRing = true; }
+      favUI();
+      apply();
+    },
+    merge: function (l, s) {
+      var a = (s && s.saved || []).concat(l && l.saved || []).filter(function (v, k, all) { return all.indexOf(v) === k; });
+      return { saved: a, from: l && l.from !== FROM0 ? l.from : (s && s.from) || FROM0 };
+    },
+    empty: function (d) { return !(d && d.saved && d.saved.length) && (!d || d.from === FROM0); }
+  });
   // Local extensions may load data later; refresh what they decorate
   if (X.load) X.load().then(function () { buildFilters(); apply(); drawPlat(); });
 })();

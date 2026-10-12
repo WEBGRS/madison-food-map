@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="style.css?v=b12c4c51ff">
+<link rel="stylesheet" href="style.css?v=1068615279">
 </head>
 <body>
 <header class="top">
@@ -64,6 +64,7 @@
           </div>
         </div>
         <button class="chip" id="f-open" type="button" aria-pressed="false" data-i18n="open_now">营业中</button>
+        <button class="chip" id="f-saved" type="button" aria-pressed="false">已收藏</button>
         <button class="chip" id="f-more" type="button" aria-expanded="false" data-i18n="more_filters">更多筛选</button>
         <button class="chip dice" id="f-dice" type="button" aria-haspopup="dialog">
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.6" fill="currentColor"/></svg>
@@ -124,7 +125,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="data/config.js?v=32ab0ec65c"></script>
 <script src="guard-client.js?v=9af92d3c84"></script>
-<script src="app.js?v=06355a1d7c"></script>
+<script src="acct-sync.js?v=70efc43a35"></script>
+<script src="app.js?v=2f95d3730f"></script>
+<script src="account.js?v=0ccd064462" data-mount=".top-right" data-class="lang" data-compact="640" defer></script>
 <script src="feedback.js?v=f6ff8df4eb" data-site="eats" data-star="WEBGRS/madison-food-map" data-float-bottom-narrow="72" data-narrow-max="760" defer></script>
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "bac1569834fa4682962ab1c4355c6474"}'></script><!-- End Cloudflare Web Analytics -->
 </body>

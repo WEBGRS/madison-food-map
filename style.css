@@ -472,10 +472,21 @@ html[lang|="zh"] .plat-price p { max-width: none; }
 
 /* Phone header: fits on one line at 360 px in both languages (after the 760 px rules it narrows) */
 @media (max-width: 520px) {
-  .top { gap: 8px; padding: 0 10px; }
+  .top { gap: 4px; padding: 0 8px; }
   .wordmark { font-size: 16px; }
-  .tab { padding: 0 5px; }
-  .top-right { gap: 6px; }
-  .lang { padding: 4px 9px; }
+  .tab { padding: 0 4px; }
+  .top-right { gap: 3px; }
+  .top-right .msac-btn:not(.msac-in) { width: 30px; padding: 0; }
+  .lang { padding: 4px 7px; }
 }
 @media (max-width: 374px) { .wordmark { font-size: 14.5px; letter-spacing: -.04em; } .tab { padding: 0 4px; } }
+@media (max-width: 340px) { .wordmark { font-size: 12.5px; } .tab { padding: 0 2px; } .top { gap: 3px; padding: 0 6px; } }
+
+/* Save star */
+.save { width: 30px; height: 30px; padding: 0; border: 1px solid var(--ink); border-radius: 50%; background: var(--paper); color: var(--ink); font-size: 16px; line-height: 1; display: grid; place-items: center; flex: none; }
+.save[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.item { position: relative; }
+.item .save { position: absolute; top: 6px; right: 10px; width: 26px; height: 26px; font-size: 14px; }
+.grid > li { position: relative; }
+.grid > li > .save { position: absolute; top: 10px; left: 10px; box-shadow: 0 0 0 2px var(--paper); }
+.dtop { display: flex; align-items: center; gap: 10px; }
