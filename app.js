@@ -1117,7 +1117,7 @@
   function i18n() {
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
     document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
-    document.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.placeholder = t(el.getAttribute('data-i18n-ph')); });
+    document.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.placeholder = t(el.getAttribute('data-i18n-ph')); el.setAttribute('aria-label', el.placeholder); });
     // Full tab names, short ones on phones
     document.querySelectorAll('[data-tab]').forEach(function (el) {
       var k = 'tab_' + el.getAttribute('data-tab');
@@ -1257,12 +1257,19 @@
     var q = queryParams(0);
     q.pick = true;
     q.avoid = RND.recent.slice(-8);
+    // No overall range set: pick from above-median places (60+), all of them if none are left
+    var floor = !(q.ranges && q.ranges.o);
+    if (floor) q.min = 60;
     RND.cur = null;
     $('rnd-go').disabled = $('rnd-again').disabled = true;
     $('rnd').classList.add('rolling');
     $('rnd-photo').innerHTML = DICE;
     $('rnd-sub').innerHTML = '';
-    DS.search(q).then(function (r) { got = r; }, function (e) { got = { error: e }; });
+    DS.search(q).then(function (r) {
+      if (!floor || (r.rows && r.rows.length)) return r;
+      delete q.min;
+      return DS.search(q);
+    }).then(function (r) { got = r; }, function (e) { got = { error: e }; });
     // Names from the list flick past, slowing down, until the answer is in
     (function step() {
       if (my !== RND.seq) return;
