@@ -469,6 +469,12 @@ html[lang|="zh"] .plat-price p { max-width: none; }
 @media (max-width: 760px) {
   :root { --wgfb-display: none; }
   .gp-bar { display: none; }
+  /* Filters scroll away with the cards, in one sliding row; the score weighting stays on bigger screens */
+  .ghead { position: static; }
+  .filters .frow { flex-wrap: nowrap; overflow-x: auto; margin: 0 -12px; padding: 0 12px 2px; scrollbar-width: none; }
+  .filters .frow::-webkit-scrollbar { display: none; }
+  .filters .frow > * { flex: none; }
+  .picker:has(#f-wt) { display: none; }
 }
 
 /* Phone header: fits on one line at 360 px in both languages (after the 760 px rules it narrows) */
