@@ -465,10 +465,11 @@ html[lang|="zh"] .plat-price p { max-width: none; }
 @keyframes settle { from { opacity: .4; transform: scale(1.04); transform-origin: left center; } }
 :root[data-theme="dark"] .iconbtn svg { transform: rotate(180deg); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .iconbtn svg { transform: rotate(180deg); } }
-/* The Star / Feedback pill steps aside for the full-screen details view on phones */
-@media (max-width: 760px) { body.drawer-open, body.page-open { --wgfb-display: none; } }
-/* ...and for an open range or cuisine panel, whose buttons sit at the bottom */
-@media (max-width: 760px) { body:has(.pick-pop:not([hidden])) { --wgfb-display: none; } }
+/* Phones: no Star / Feedback pill, no Back bar (the system back gesture and the All places tab do that) */
+@media (max-width: 760px) {
+  :root { --wgfb-display: none; }
+  .gp-bar { display: none; }
+}
 
 /* Phone header: fits on one line at 360 px in both languages (after the 760 px rules it narrows) */
 @media (max-width: 520px) {

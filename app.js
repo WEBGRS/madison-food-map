@@ -1187,10 +1187,23 @@
     if (name === 'grid' && f.parentNode !== $('ghead')) $('ghead').appendChild(f);
     if (name === 'map' && f.parentNode !== $('rail')) $('rail').insertBefore(f, $('count'));
     LS.set('view', name);
+    topBack();
     if (name === 'plat') { if (PS) drawPlat(); else loadPlat(); }
     if (name === 'map') setTimeout(function () { map.invalidateSize(); renderRing(); }, 0);
   }
-  document.querySelectorAll('.tab').forEach(function (b) { b.onclick = function () { showView(b.getAttribute('data-view')); }; });
+  document.querySelectorAll('.tab').forEach(function (b) {
+    b.onclick = function () {
+      var v = b.getAttribute('data-view');
+      if (v === 'grid' && curView === 'grid' && !$('gpage').hidden) { leavePage(); return; }  // the phone page has no Back bar
+      showView(v);
+    };
+  });
+  // Phone top bar slides away while scrolling a list; the map always gets it back (and its new size)
+  function topBack() {
+    if (!window.NavHide || !document.documentElement.classList.contains('nav-hidden')) return;
+    NavHide.show();
+    setTimeout(function () { map.invalidateSize(); }, 260);
+  }
   // #p=<id>: a place page in the grid view (a card click pushes it, so Back returns to the grid), the side panel on the map
   function openFromView(i) {
     if (curView !== 'grid') showView('grid');
@@ -1221,7 +1234,7 @@
     var row = e.target.closest('.prow[data-i]');
     if (row) openFromView(+row.getAttribute('data-i'));
   });
-  $('switcher').onclick = function () { document.body.classList.toggle('show-map'); i18n(); setTimeout(function () { map.invalidateSize(); }, 0); };
+  $('switcher').onclick = function () { document.body.classList.toggle('show-map'); i18n(); topBack(); setTimeout(function () { map.invalidateSize(); }, 0); };
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape' || $('rnd').open) return;  // the dialog closes itself
     var pk = [cuisPick, platPick].filter(function (x) { return x.open(); })[0];
