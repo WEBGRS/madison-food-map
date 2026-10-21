@@ -809,18 +809,19 @@
   }
 
   // ---------- details ----------
-  function openPlace(i, fromMap) {
+  // replace: the history entry already exists (a #p= link, the first load)
+  function openPlace(i, fromMap, replace) {
     var prev = sel;
-    sel = (prev === i && fromMap) ? null : i;
-    if (sel === null) { closeDrawer(); return; }
+    if (prev === i && fromMap) { dismissDrawer(); return; }
+    sel = i;
     document.querySelectorAll('.item.sel').forEach(function (el) { el.classList.remove('sel'); });
     var li = document.querySelector('.item[data-i="' + i + '"]');
     if (li) { li.classList.add('sel'); if (fromMap) li.scrollIntoView({ block: 'nearest' }); }
     restyle(prev); restyle(i);
     var mk = markById[i];
     if (mk && !fromMap) map.setView([mk[1], mk[2]], Math.max(map.getZoom(), 15), { animate: false });
-    try { history.replaceState(null, '', '#p=' + i); } catch (e) { /* file url */ }
-    var dr = $('drawer');
+    var dr = $('drawer'), wasOpen = !dr.hidden;
+    if (!restoring) try { history[replace || (wasOpen && history.state && history.state.sel != null) ? 'replaceState' : 'pushState'](navState(i), '', '#p=' + i); } catch (e) { /* file url */ }
     dr.hidden = false;
     document.body.classList.add('drawer-open');
     dr.innerHTML = '<div class="dbody"><h2>' + esc(names[i] ? names[i].n : '') + '</h2><p class="src">' + t('loading') + '</p></div>';
@@ -833,8 +834,13 @@
     }).catch(function (e) {
       if (sel !== i) return;
       dr.innerHTML = '<div class="close-wrap"><button class="close" id="dclose" aria-label="Close">×</button></div><div class="dbody"><p>' + esc(apiErrText(e)) + '</p></div>';
-      $('dclose').onclick = closeDrawer;
+      $('dclose').onclick = dismissDrawer;
     });
+  }
+  // Closing by hand undoes the step that opened it
+  function dismissDrawer() {
+    if (history.state && history.state.sel != null && !$('drawer').hidden) history.back();
+    else closeDrawer();
   }
   function closeDrawer() {
     var prev = sel;
@@ -843,7 +849,7 @@
     document.body.classList.remove('drawer-open');
     restyle(prev);
     document.querySelectorAll('.item.sel').forEach(function (el) { el.classList.remove('sel'); });
-    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* file url */ }
+    if (!restoring) try { history.replaceState(navState(null), '', location.pathname + location.search); } catch (e) { /* file url */ }
   }
   function fmtPhone(s) {
     var d = String(s).replace(/\D/g, '');
@@ -984,7 +990,7 @@
       '<div class="dbody">' + o.head(true) + o.verdict + o.tags + o.actions + o.host + o.dishes + o.metrics + o.ext + o.folds + '</div>';
     dr.scrollTop = 0;
     markLoaded(dr);
-    $('dclose').onclick = closeDrawer;
+    $('dclose').onclick = dismissDrawer;
   }
 
   // ---------- full-width page (grid view): the place on the left, a small map and the ways to order on the right ----------
@@ -1195,8 +1201,30 @@
     b.onclick = function () {
       var v = b.getAttribute('data-view');
       if (v === 'grid' && curView === 'grid' && !$('gpage').hidden) { leavePage(); return; }  // the phone page has no Back bar
+      var changed = v !== curView;
       showView(v);
+      if (changed) step();
     };
+  });
+  // ---------- Back: tabs, the map/list switch and the map's side panel are history steps; #p= pages in the grid are hash steps
+  var restoring = false;
+  function navState(s) { return { v: curView, m: document.body.classList.contains('show-map'), sel: s }; }
+  function step(replace) {
+    if (restoring) return;
+    try { history[replace ? 'replaceState' : 'pushState'](navState($('drawer').hidden ? null : sel), '', location.href); } catch (e) { /* file url */ }
+  }
+  function setMapShown(on) { document.body.classList.toggle('show-map', on); i18n(); topBack(); setTimeout(function () { map.invalidateSize(); }, 0); }
+  window.addEventListener('popstate', function (e) {
+    var s = e.state || { v: 'grid' };  // a #p= step in the grid
+    restoring = true;
+    try {
+      if (s.v && s.v !== curView) showView(s.v);
+      if (curView === 'map') {
+        if (!!s.m !== document.body.classList.contains('show-map')) setMapShown(!!s.m);
+        if (s.sel == null && sel != null) closeDrawer();
+        else if (s.sel != null && s.sel !== sel) openPlace(s.sel, false);
+      }
+    } finally { restoring = false; }
   });
   // Phone top bar slides away while scrolling a list; the map always gets it back (and its new size)
   function topBack() {
@@ -1216,7 +1244,7 @@
   });
   window.addEventListener('hashchange', function () {
     var m = /#p=(\d+)/.exec(location.hash);
-    if (curView === 'map') { if (m) openPlace(+m[1], false); else if (sel != null) closeDrawer(); return; }
+    if (curView === 'map') { if (m) { if (+m[1] !== sel) openPlace(+m[1], false, true); } else if (sel != null) closeDrawer(); return; }
     if (curView !== 'grid') showView('grid');
     if (m) openPage(+m[1], true); else closePage();
   });
@@ -1234,7 +1262,7 @@
     var row = e.target.closest('.prow[data-i]');
     if (row) openFromView(+row.getAttribute('data-i'));
   });
-  $('switcher').onclick = function () { document.body.classList.toggle('show-map'); i18n(); topBack(); setTimeout(function () { map.invalidateSize(); }, 0); };
+  $('switcher').onclick = function () { setMapShown(!document.body.classList.contains('show-map')); step(); };
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape' || $('rnd').open) return;  // the dialog closes itself
     var pk = [cuisPick, platPick].filter(function (x) { return x.open(); })[0];
@@ -1242,7 +1270,7 @@
     else if (!$('f-wt-pop').hidden) hideWeights(true);
     else if (pk) pk.hide(true);
     else if (curView === 'grid' && pageId != null) leavePage();
-    else if (sel != null) closeDrawer();
+    else if (sel != null) dismissDrawer();
   });
   // Black on white or white on black; follows the system until the button is used
   var themeT = null;
@@ -1341,9 +1369,10 @@
   apply();
   var m = /#p=(\d+)/.exec(location.hash);
   if (m) {
-    if (curView === 'map') openPlace(+m[1], false);
+    if (curView === 'map') openPlace(+m[1], false, true);
     else { showView('grid'); openPage(+m[1], false); }
   }
+  step(true);
   // Keep saved places and the distance origin in the account
   var FROM0 = LOCAL.home ? 'home' : 'campus';
   if (window.MSSync) sync = window.MSSync('eats', {
