@@ -40,6 +40,11 @@
     set: function (k, v) { try { localStorage.setItem('me:' + k, v); } catch (e) { /* storage blocked */ } }
   };
   var lang = LS.get('lang', /^zh/i.test(navigator.language || '') ? 'zh' : 'en');
+  // Sort order: Best nearby unless another one was picked (the old key always held Best overall, the old default)
+  function savedSort() {
+    var old = LS.get('sort', 'overall');
+    return LS.get('srt', old === 'overall' ? 'near' : old);
+  }
 
   // Saved places: stable ids (sk), kept in this browser and in the account
   var FAV = [], sync = null;
@@ -59,7 +64,7 @@
       wt_note: '按你的比例重新计算综合分、排序和地图颜色；某项没有数据的店，按其余几项的比例算。',
       wt_p_default: '默认', wt_p_taste: '只看口味', wt_p_value: '性价比优先', wt_p_hyg: '卫生优先', wt_p_pop: '人气优先', wt_p_conv: '外卖方便',
       wt_using: '这里的综合分按你设的权重算：{x}（默认是口味 50%、人气 15%、性价比 15%、卫生 10%、方便 10%）。',
-      sort_overall: '综合排序', sort_taste: '口味最好', sort_pop: '最有人气', sort_value: '最划算', sort_hyg: '卫生最好',
+      sort_near: '附近最佳', sort_overall: '综合排序', sort_taste: '口味最好', sort_pop: '最有人气', sort_value: '最划算', sort_hyg: '卫生最好',
       sort_dist: '离我最近', sort_count: '外卖评分最多',
       from_home: '家', from_gps: '我的位置', from_campus: '校园 Library Mall', from_capitol: '州议会',
       count: '{n} 家', more: '再显示 {n} 家', empty: '没有符合条件的店，换个关键词或者放宽筛选试试。', show_map: '地图', show_list: '列表',
@@ -114,7 +119,7 @@
       wt_note: 'Overall scores, sorting and map colours follow your mix; a place missing a part is scored on the rest in the same proportions.',
       wt_p_default: 'Default', wt_p_taste: 'Taste only', wt_p_value: 'Value first', wt_p_hyg: 'Clean first', wt_p_pop: 'Popular first', wt_p_conv: 'Easy delivery',
       wt_using: 'Overall scores here use your weights: {x} (default: taste 50%, popularity 15%, value 15%, hygiene 10%, convenience 10%).',
-      sort_overall: 'Best overall', sort_taste: 'Best taste', sort_pop: 'Most popular', sort_value: 'Best value', sort_hyg: 'Cleanest',
+      sort_near: 'Best nearby', sort_overall: 'Best overall', sort_taste: 'Best taste', sort_pop: 'Most popular', sort_value: 'Best value', sort_hyg: 'Cleanest',
       sort_dist: 'Closest', sort_count: 'Most app ratings',
       from_home: 'Home', from_gps: 'My location', from_campus: 'Campus (Library Mall)', from_capitol: 'Capitol',
       count: '{n} places', more: 'Show {n} more', empty: 'Nothing matches. Try another word or loosen the filters.', show_map: 'Map', show_list: 'List',
@@ -605,8 +610,8 @@
     var kinds = COUNTS.kinds, tcount = COUNTS.tags;
     cuisPick.redraw();
     platPick.redraw();
-    fillSelect($('f-sort'), [['overall', t('sort_overall')], ['taste', t('sort_taste')], ['pop', t('sort_pop')], ['value', t('sort_value')],
-      ['hyg', t('sort_hyg')], ['dist', t('sort_dist')], ['count', t('sort_count')]], LS.get('sort', 'overall'));
+    fillSelect($('f-sort'), [['near', t('sort_near')], ['overall', t('sort_overall')], ['taste', t('sort_taste')], ['pop', t('sort_pop')], ['value', t('sort_value')],
+      ['hyg', t('sort_hyg')], ['dist', t('sort_dist')], ['count', t('sort_count')]], savedSort());
     fillSelect($('f-kind'), [['', t('all_kinds')]].concat(['restaurant', 'fast_food', 'cafe', 'dessert', 'bar', 'cart', 'market', 'virtual']
       .filter(function (k) { return kinds[k]; }).map(function (k) { return [k, kindLabel(k)]; })), LS.get('kind', ''));
     var tagOpts = [['', t('any_tag')]].concat(Object.keys(TG).filter(function (g) { return tcount[g]; }).map(function (g) { return [g, TG[g][lang === 'zh' ? 0 : 1]]; }));
@@ -640,7 +645,8 @@
   }
   function apply() {
     var q = queryParams(0);
-    ['kind', 'cuis', 'plat', 'sort', 'tag', 'rated'].forEach(function (k) { LS.set(k, q[k]); });
+    ['kind', 'cuis', 'plat', 'tag', 'rated'].forEach(function (k) { LS.set(k, q[k]); });
+    LS.set('srt', q.sort);
     LS.set('from', q.from);
     moreLabel();
     var my = ++seq;
