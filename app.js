@@ -770,7 +770,7 @@
   }
   var TIERS = ['na', 's3', 's2', 's1'];
   function markerStyle(tr, on) {
-    var ink = dark() ? '#fff' : '#000', paper = dark() ? '#000' : '#fff';
+    var ink = dark() ? '#fff' : '#6ba547', paper = dark() ? '#000' : '#fff';
     if (on) return { radius: 10, weight: 3, color: paper, fillColor: ink, fillOpacity: 1 };
     if (tr === 's1') return { radius: 7, weight: 1.5, color: paper, fillColor: ink, fillOpacity: 1 };
     if (tr === 's2') return { radius: 6, weight: 2, color: ink, fillColor: paper, fillOpacity: 1 };
@@ -778,7 +778,7 @@
     return { radius: 3, weight: 1, color: '#8C8C8C', fillColor: paper, fillOpacity: 1 };
   }
   function renderLegend() {
-    var ink = dark() ? '#fff' : '#000', paper = dark() ? '#000' : '#fff';
+    var ink = dark() ? '#fff' : '#6ba547', paper = dark() ? '#000' : '#fff';
     $('legend').innerHTML = '<span><i style="background:' + ink + '"></i>80+</span><span><i style="background:' + paper + ';border:2px solid ' + ink +
       '"></i>65–79</span><span><i style="background:#8C8C8C"></i>&lt;65</span><span><i style="background:' + paper + ';border:1px solid #8C8C8C"></i>' + t('not_rated') + '</span>';
   }
@@ -807,7 +807,7 @@
   function renderRing() {
     if (ring) { map.removeLayer(ring); ring = null; }
     if (!rgMiles()) return;
-    ring = L.circle(refPoint(), { radius: rgMiles() * 1609.34, color: dark() ? '#fff' : '#000', weight: 1.5, dashArray: '6 6', fill: false, interactive: false }).addTo(map);
+    ring = L.circle(refPoint(), { radius: rgMiles() * 1609.34, color: dark() ? '#fff' : '#1f5d80', weight: 1.5, dashArray: '6 6', fill: false, interactive: false }).addTo(map);
     if (fitRing && curView === 'map') { map.fitBounds(ring.getBounds(), { padding: [24, 24] }); fitRing = false; }
   }
   function restyle(i) {
