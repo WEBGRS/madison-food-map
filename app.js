@@ -318,7 +318,10 @@
     return (p.c || []).slice(0, n || 9).map(cuisLabel).join(' / ') || kindLabel(p.k);
   }
   function metaHtml(p, op) {
-    var parts = [cuisLine(p, 2), p.pr ? '$'.repeat(p.pr) : ''].filter(Boolean).map(esc);
+    // Drop a cuisine the highlight line already names ("#1 European")
+    var hls = (p.hl || []).map(function (h) { return lang === 'zh' ? h[0] : h[1]; });
+    var cu = p.k === 'market' || !(p.c || []).length ? cuisLine(p, 2) : (p.c || []).slice(0, 2).map(cuisLabel).filter(function (c) { return !hls.some(function (h) { return h.indexOf(c) >= 0; }); }).join(' / ');
+    var parts = [cu, p.pr ? '$'.repeat(p.pr) : ''].filter(Boolean).map(esc);
     if (op) parts.push('<span class="op">' + esc(op) + '</span>');
     if (p.dk != null) parts.push(esc(distLabel(p.dk)));
     return parts.join(' · ');

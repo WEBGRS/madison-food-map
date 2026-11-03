@@ -401,8 +401,6 @@ html[lang|="zh"] .plat-price p { max-width: none; }
   .filters { position: relative; }
   .picker { position: static; }
   .pick-pop { top: auto; left: 12px; right: 12px; width: auto; margin-top: 6px; }
-  .card .hl > :nth-child(n+3) { display: none; }
-  .card .hl > :nth-child(2) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .gfoot { width: calc(100% - 24px); padding: 18px 0 32px; }
   .cimg .score { min-width: 36px; height: 36px; font-size: 14px; top: 8px; right: 8px; }
   .gp-bar-in { padding: 8px 16px; }
@@ -497,3 +495,26 @@ html[lang|="zh"] .plat-price p { max-width: none; }
 .grid > li { position: relative; }
 .grid > li > .save { position: absolute; top: 10px; left: 10px; box-shadow: 0 0 0 2px var(--paper); }
 .dtop { display: flex; align-items: center; gap: 10px; }
+
+/* Search + "Pick one for me" share a row; on wide screens the filters sit in one row beside them */
+.qrow { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.qrow .search { flex: 1; min-width: 0; }
+.qrow .dice { flex: none; align-self: stretch; padding: 0 14px; }
+.ghead .filters { grid-template-columns: minmax(280px, 1fr) auto; column-gap: 12px; }
+.ghead .frow { flex-wrap: nowrap; }
+.frow > * { flex: none; }
+@media (max-width: 1180px) {
+  .ghead .filters { grid-template-columns: minmax(0, 1fr); }
+  .ghead .frow { flex-wrap: wrap; }
+}
+/* Highlights wrap whole items instead of cutting the last one; a dot that would start a line is clipped */
+.hl { flex-wrap: wrap; white-space: normal; overflow: visible; column-gap: 0; row-gap: 2px; margin-left: -14px; clip-path: inset(-4px -4px -4px 14px); }
+.hl > *, .hl > :last-child { flex: none; white-space: nowrap; overflow: visible; min-width: 0; }
+.hl > span { position: relative; padding-left: 14px; }
+.hl > span > i { position: absolute; left: 5px; top: 0; margin: 0; }
+.hl > .warn { margin-left: 14px; padding: 1px 6px; }
+.card .meta { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+@media (max-width: 760px) {
+  .ghead .frow { flex-wrap: nowrap; }
+  .qrow .dice { padding: 0 12px; }
+}
